@@ -12,6 +12,24 @@ const ROLES = [
   { value: 'tesoureiro', label: 'Tesoureiro' },
 ];
 
+const ROLE_LABELS: Record<string, string> = {
+  membro: 'Membro',
+  admin: 'Admin',
+  mestre_conselheiro: 'Mestre Conselheiro',
+  primeiro_conselheiro: '1º Conselheiro',
+  escrivao: 'Escrivão',
+  tesoureiro: 'Tesoureiro',
+};
+
+interface UserItem {
+  id: string;
+  email: string | null;
+  name: string | null;
+  role: string;
+  active: boolean | null;
+  created_at: string;
+}
+
 export default function PainelUsuariosPage() {
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [email, setEmail] = useState('');
@@ -25,9 +43,13 @@ export default function PainelUsuariosPage() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState('');
   const [resetSuccess, setResetSuccess] = useState('');
+  const [users, setUsers] = useState<UserItem[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const canInvite = user?.role && ['admin', 'mestre_conselheiro', 'primeiro_conselheiro'].includes(user.role);
   const canResetPassword = canInvite;
+  const canManageUsers = canInvite;
 
   useEffect(() => {
     const stored = sessionStorage.getItem('dm_user');
@@ -37,6 +59,63 @@ export default function PainelUsuariosPage() {
       } catch {}
     }
   }, []);
+
+  async function loadUsers() {
+    if (!canManageUsers) return;
+    setUsersLoading(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/auth/users', { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(Array.isArray(data) ? data : []);
+      }
+    } catch {
+      setUsers([]);
+    } finally {
+      setUsersLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (canManageUsers) loadUsers();
+  }, [canManageUsers]);
+
+  async function handleToggleActive(u: UserItem) {
+    if (!confirm(u.active ? 'Inativar este usuário? Ele não poderá mais acessar o painel.' : 'Reativar este usuário?')) return;
+    setActionLoading(u.id);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/auth/users/${u.id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ active: !u.active }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro');
+      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, active: !u.active } : x)));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao alterar');
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleDelete(u: UserItem) {
+    if (!confirm(`Excluir permanentemente o usuário ${u.email || u.name || u.id}? Esta ação não pode ser desfeita.`)) return;
+    setActionLoading(u.id);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/auth/users/${u.id}`, { method: 'DELETE', headers });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro');
+      setUsers((prev) => prev.filter((x) => x.id !== u.id));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao excluir');
+    } finally {
+      setActionLoading(null);
+    }
+  }
 
   async function getAuthHeaders(): Promise<HeadersInit> {
     const supabase = createClient();
@@ -105,6 +184,64 @@ export default function PainelUsuariosPage() {
 
   return (
     <div className="space-y-10">
+      {canManageUsers && (
+        <div className="border-b border-slate-200 pb-10">
+          <h2 className="text-xl font-bold text-blue-800 mb-4">Usuários cadastrados</h2>
+          {usersLoading ? (
+            <p className="text-slate-500">Carregando...</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border border-slate-200 rounded-lg overflow-hidden">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="text-left px-4 py-3 text-sm font-semibold text-slate-700">Nome</th>
+                    <th className="text-left px-4 py-3 text-sm font-semibold text-slate-700">Email</th>
+                    <th className="text-left px-4 py-3 text-sm font-semibold text-slate-700">Cargo</th>
+                    <th className="text-left px-4 py-3 text-sm font-semibold text-slate-700">Status</th>
+                    <th className="text-right px-4 py-3 text-sm font-semibold text-slate-700">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u) => (
+                    <tr key={u.id} className={`border-t border-slate-200 ${u.active === false ? 'bg-slate-50 opacity-75' : ''}`}>
+                      <td className="px-4 py-3 text-slate-800">{u.name || '—'}</td>
+                      <td className="px-4 py-3 text-slate-600 text-sm">{u.email || '—'}</td>
+                      <td className="px-4 py-3 text-slate-600 text-sm">{ROLE_LABELS[u.role] || u.role}</td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-1 rounded-full ${u.active !== false ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'}`}>
+                          {u.active !== false ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleToggleActive(u)}
+                            disabled={actionLoading === u.id}
+                            className="px-3 py-1 text-sm rounded border border-amber-600 text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+                          >
+                            {actionLoading === u.id ? '...' : u.active !== false ? 'Inativar' : 'Ativar'}
+                          </button>
+                          <button
+                            onClick={() => handleDelete(u)}
+                            disabled={actionLoading === u.id}
+                            className="px-3 py-1 text-sm rounded border border-red-600 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                          >
+                            Excluir
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {users.length === 0 && (
+                <p className="py-8 text-center text-slate-500 bg-white border border-slate-200 rounded-lg">Nenhum usuário cadastrado.</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl font-bold text-blue-800 mb-6">Cadastrar usuário</h1>
         <p className="text-slate-600 mb-6">

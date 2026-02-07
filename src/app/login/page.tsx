@@ -39,13 +39,19 @@ export default function LoginPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('email, name, role, avatar_url')
+        .select('email, name, role, avatar_url, active')
         .eq('id', authData.user.id)
         .single();
 
       if (profileError || !profile) {
         await supabase.auth.signOut();
         setError('Perfil não encontrado. Entre em contato com o Capítulo.');
+        return;
+      }
+
+      if (profile.active === false) {
+        await supabase.auth.signOut();
+        setError('Esta conta está inativa. Entre em contato com o Capítulo.');
         return;
       }
 

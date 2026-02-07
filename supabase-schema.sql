@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   birth_date DATE,
   avatar_url TEXT,
   role TEXT NOT NULL DEFAULT 'membro',
+  active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

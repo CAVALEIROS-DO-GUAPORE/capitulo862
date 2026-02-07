@@ -4,6 +4,7 @@
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS birth_date DATE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true;
 
 -- Permite que usuários atualizem o próprio perfil
 DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
