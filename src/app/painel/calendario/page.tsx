@@ -144,7 +144,7 @@ export default function PainelCalendarioPage() {
         )}
       </div>
       <p className="text-slate-600 mb-6">
-        MC e 1º Conselheiro podem cadastrar, editar e excluir eventos.
+        Eventos e datas do capítulo.
       </p>
 
       {loading ? (

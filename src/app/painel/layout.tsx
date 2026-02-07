@@ -180,8 +180,9 @@ export default function PainelLayout({
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-14">
-          <Link href="/painel" className="flex items-center shrink-0">
-            <Image src="/logocapitulo.png" alt="Cap. Cavaleiros do Guaporé nº 862" width={120} height={44} className="h-9 w-auto" priority />
+          <Link href="/painel" className="flex items-center gap-2 shrink-0 min-w-0">
+            <Image src="/logocapitulo.png" alt="Cap. Cavaleiros do Guaporé nº 862" width={120} height={44} className="h-9 w-auto shrink-0" priority />
+            <span className="text-sm sm:text-base font-bold text-blue-800 truncate">Cap. Cavaleiros do Guaporé Nº 862</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link

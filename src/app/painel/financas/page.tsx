@@ -157,7 +157,7 @@ export default function PainelFinancasPage() {
         )}
       </div>
       <p className="text-slate-600 mb-6">
-        Tesoureiro, MC e 1º Conselheiro podem lançar, editar e excluir. Todos podem ver saldo e movimentações.
+        Entradas e saídas financeiras do capítulo.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">

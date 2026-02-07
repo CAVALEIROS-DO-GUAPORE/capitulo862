@@ -255,7 +255,7 @@ export default function PainelUsuariosPage() {
       <div>
         <h1 className="text-2xl font-bold text-blue-800 mb-6">Cadastrar usuário</h1>
         <p className="text-slate-600 mb-6">
-          Admin, MC e 1º Conselheiro podem criar usuários. A senha inicial será sempre <strong>capitulo862</strong>. O usuário pode trocá-la em Perfil após o login.
+          Cadastro de usuários do painel. Senha inicial: <strong>capitulo862</strong> (pode ser alterada em Perfil).
         </p>
 
         <form onSubmit={handleSubmit} className="max-w-md space-y-4">
@@ -308,7 +308,7 @@ export default function PainelUsuariosPage() {
         <div className="border-t border-slate-200 pt-10">
           <h2 className="text-xl font-bold text-blue-800 mb-2">Redefinir senha de usuário</h2>
           <p className="text-slate-600 mb-4">
-            MC, 1º Conselheiro e Admin podem alterar a senha de qualquer usuário, caso precise.
+            Redefinir a senha de um usuário pelo email.
           </p>
           <form onSubmit={handleResetPassword} className="max-w-md space-y-4">
             <div>

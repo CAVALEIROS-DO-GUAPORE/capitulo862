@@ -140,7 +140,7 @@ export default function PainelCandidatosPage() {
         </Link>
       </div>
       <p className="text-slate-600 mb-6">
-        Novas fichas cadastrais aparecem aqui. MC e 1º Conselheiro são notificados quando alguém preenche o formulário.
+        Candidaturas de jovens interessados em ser DeMolay.
       </p>
 
       {loading ? (

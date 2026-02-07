@@ -148,7 +148,7 @@ export default function PainelMembrosPage() {
         )}
       </div>
       <p className="text-slate-600 mb-6">
-        Todos podem ver a lista e o perfil (foto, cargo, telefone). Apenas MC, 1º Conselheiro e Admin podem cadastrar, editar e excluir.
+        Lista de membros do capítulo com foto, cargo e contato.
       </p>
 
       {loading ? (

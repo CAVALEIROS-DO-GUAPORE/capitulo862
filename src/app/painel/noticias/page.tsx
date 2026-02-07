@@ -174,7 +174,7 @@ export default function PainelNoticiasPage() {
         )}
       </div>
       <p className="text-slate-600 mb-6">
-        MC, 1º Conselheiro, Escrivão e Admin podem publicar, editar e excluir notícias.
+        Notícias e avisos do capítulo.
       </p>
 
       {loading ? (

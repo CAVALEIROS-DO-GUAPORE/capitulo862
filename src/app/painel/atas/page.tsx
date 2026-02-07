@@ -141,7 +141,7 @@ export default function PainelAtasPage() {
         )}
       </div>
       <p className="text-slate-600 mb-6">
-        Escrivão, MC e 1º Conselheiro podem publicar, editar e excluir atas. Todos podem visualizar.
+        Atas das reuniões e assembleias.
       </p>
 
       {loading ? (
