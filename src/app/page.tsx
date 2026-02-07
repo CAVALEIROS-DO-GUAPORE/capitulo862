@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { CHAPTER_NAME, CHAPTER_NUMBER } from '@/data/mock';
 
 export default function HomePage() {
@@ -6,9 +7,7 @@ export default function HomePage() {
     <div>
       <section className="relative py-20 px-4 bg-gradient-to-b from-blue-800 to-blue-900">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            Cavaleiros do Guaporé nº {CHAPTER_NUMBER}
-          </h1>
+          <Image src="/logocapitulo.png" alt="Cavaleiros do Guaporé nº 862" width={320} height={120} priority className="mx-auto mb-6 h-24 md:h-32 w-auto" />
           <p className="text-xl text-blue-100 mb-8">
             Ordem DeMolay · Fraternidade, Reverência e Companheirismo
           </p>

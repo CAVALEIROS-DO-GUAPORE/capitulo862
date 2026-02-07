@@ -11,7 +11,6 @@ export default function Footer() {
           </div>
           <nav className="flex gap-6 text-blue-200">
             <Link href="/" className="hover:text-white transition-colors">Início</Link>
-            <Link href="/ser-demolay" className="hover:text-white transition-colors">Ser DeMolay</Link>
             <Link href="/sobre" className="hover:text-white transition-colors">Sobre</Link>
             <Link href="/membros" className="hover:text-white transition-colors">Membros</Link>
             <Link href="/noticias" className="hover:text-white transition-colors">Notícias</Link>

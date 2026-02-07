@@ -17,15 +17,13 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // TODO: Integrar com Supabase Auth quando as contas forem criadas
-      // Usuários de teste para desenvolvimento:
+      // TODO: Integrar com Supabase Auth
       const testUsers: Record<string, { role: string; name: string }> = {
         'admin@cavaleiros862.org': { role: 'admin', name: 'Administrador' },
         'mestre@cavaleiros862.org': { role: 'mestre_conselheiro', name: 'Mestre Conselheiro' },
         'primeiro@cavaleiros862.org': { role: 'primeiro_conselheiro', name: '1º Conselheiro' },
       };
       const testPassword = 'demolay862';
-
       const user = testUsers[email.trim().toLowerCase()];
       if (user && password === testPassword) {
         sessionStorage.setItem('dm_user', JSON.stringify({
@@ -36,7 +34,7 @@ export default function LoginPage() {
         router.push('/painel');
         router.refresh();
       } else if (email && password) {
-        setError('Email ou senha incorretos. Use as credenciais de teste.');
+        setError('Email ou senha incorretos.');
       } else {
         setError('Preencha email e senha.');
       }
@@ -99,12 +97,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="mt-6 text-slate-500 text-sm text-center space-y-1">
-            <strong>Usuários de teste:</strong><br />
-            admin@cavaleiros862.org / demolay862<br />
-            mestre@cavaleiros862.org / demolay862<br />
-            primeiro@cavaleiros862.org / demolay862
-          </p>
         </div>
 
         <p className="mt-6 text-center text-slate-500 text-sm">

@@ -64,9 +64,7 @@ export default function PainelLayout({
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-14">
-          <Link href="/painel" className="font-bold text-blue-800">
-            Painel · Cav. Guaporé 862
-          </Link>
+          <div />
           <div className="flex items-center gap-4">
             <span className="text-slate-600 text-sm hidden sm:inline">
               {user.name}

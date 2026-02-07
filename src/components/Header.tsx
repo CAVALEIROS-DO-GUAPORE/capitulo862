@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 
 export default function Header() {
@@ -8,7 +9,6 @@ export default function Header() {
 
   const navLinks = [
     { href: '/', label: 'Início' },
-    { href: '/ser-demolay', label: 'Ser DeMolay' },
     { href: '/sobre', label: 'Sobre Nós' },
     { href: '/membros', label: 'Membros' },
     { href: '/noticias', label: 'Notícias' },
@@ -19,7 +19,7 @@ export default function Header() {
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
       <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-16">
         <Link href="/" className="flex items-center gap-2">
-          <span className="text-xl font-bold text-blue-800">Cav. Guaporé 862</span>
+          <Image src="/logocapitulo.png" alt="Cavaleiros do Guaporé nº 862" width={180} height={48} priority className="h-12 w-auto" />
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
