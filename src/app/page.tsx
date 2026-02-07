@@ -5,16 +5,20 @@ import { CHAPTER_NAME, CHAPTER_NUMBER } from '@/data/mock';
 export default function HomePage() {
   return (
     <div>
-      <section className="relative py-20 px-4 bg-gradient-to-b from-blue-800 to-blue-900">
-        <div className="max-w-4xl mx-auto text-center">
-          <Image src="/logocapitulo.png" alt="Cavaleiros do Guaporé nº 862" width={320} height={120} priority className="mx-auto mb-4 h-24 md:h-32 w-auto" />
-          <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">Cap. Cavaleiros do Guaporé Nº 862</h2>
-          <p className="text-xl text-blue-100 mb-8">
+      <section
+        className="relative py-20 px-4 min-h-[70vh] flex items-center justify-center bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/fundodm.png)' }}
+      >
+        <div className="absolute inset-0 bg-blue-900/70" aria-hidden />
+        <div className="relative z-10 max-w-4xl mx-auto text-center">
+          <Image src="/logocapitulo.png" alt="Cavaleiros do Guaporé nº 862" width={320} height={120} priority className="mx-auto mb-4 h-24 md:h-32 w-auto drop-shadow-lg" />
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-4 drop-shadow">Cap. Cavaleiros do Guaporé Nº 862</h2>
+          <p className="text-xl text-blue-100 mb-8 drop-shadow">
             Ordem DeMolay · Fraternidade, Reverência e Companheirismo
           </p>
           <Link
             href="/ser-demolay"
-            className="inline-block px-8 py-4 bg-white hover:bg-blue-50 text-blue-800 font-bold rounded-lg transition-colors text-lg"
+            className="inline-block px-8 py-4 bg-white hover:bg-blue-50 text-blue-800 font-bold rounded-lg transition-colors text-lg shadow-lg"
           >
             SER DEMOLAY
           </Link>
