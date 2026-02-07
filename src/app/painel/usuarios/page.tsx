@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
 
 const ROLES = [
   { value: 'membro', label: 'Membro' },
@@ -19,8 +20,14 @@ export default function PainelUsuariosPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState('');
+  const [resetSuccess, setResetSuccess] = useState('');
 
   const canInvite = user?.role && ['admin', 'mestre_conselheiro', 'primeiro_conselheiro'].includes(user.role);
+  const canResetPassword = canInvite;
 
   useEffect(() => {
     const stored = sessionStorage.getItem('dm_user');
@@ -30,6 +37,15 @@ export default function PainelUsuariosPage() {
       } catch {}
     }
   }, []);
+
+  async function getAuthHeaders(): Promise<HeadersInit> {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return headers;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -55,6 +71,30 @@ export default function PainelUsuariosPage() {
     }
   }
 
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setResetLoading(true);
+    setResetError('');
+    setResetSuccess('');
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ email: resetEmail.trim(), newPassword: resetPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao redefinir senha');
+      setResetSuccess('Senha alterada com sucesso.');
+      setResetEmail('');
+      setResetPassword('');
+    } catch (err) {
+      setResetError(err instanceof Error ? err.message : 'Erro');
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
   if (!user || !canInvite) {
     return (
       <div>
@@ -64,13 +104,14 @@ export default function PainelUsuariosPage() {
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-blue-800 mb-6">Cadastrar usuário</h1>
-      <p className="text-slate-600 mb-6">
-        Informe o email do novo usuário. Ele receberá um link por email para criar a senha e acessar o painel.
-      </p>
+    <div className="space-y-10">
+      <div>
+        <h1 className="text-2xl font-bold text-blue-800 mb-6">Cadastrar usuário</h1>
+        <p className="text-slate-600 mb-6">
+          Informe o email do novo usuário. Ele receberá um link por email para criar a senha e acessar o painel.
+        </p>
 
-      <form onSubmit={handleSubmit} className="max-w-md space-y-4">
+        <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>
           <label className="block text-slate-700 text-sm font-medium mb-1">Email *</label>
           <input
@@ -114,6 +155,51 @@ export default function PainelUsuariosPage() {
           {loading ? 'Enviando...' : 'Enviar convite'}
         </button>
       </form>
+      </div>
+
+      {canResetPassword && (
+        <div className="border-t border-slate-200 pt-10">
+          <h2 className="text-xl font-bold text-blue-800 mb-2">Redefinir senha de usuário</h2>
+          <p className="text-slate-600 mb-4">
+            MC, 1º Conselheiro e Admin podem alterar a senha de qualquer usuário, caso precise.
+          </p>
+          <form onSubmit={handleResetPassword} className="max-w-md space-y-4">
+            <div>
+              <label className="block text-slate-700 text-sm font-medium mb-1">Email do usuário *</label>
+              <input
+                type="email"
+                required
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                placeholder="usuario@email.com"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-700 text-sm font-medium mb-1">Nova senha *</label>
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={resetPassword}
+                onChange={(e) => setResetPassword(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                placeholder="••••••••"
+              />
+              <p className="text-slate-500 text-xs mt-1">Mínimo de 6 caracteres</p>
+            </div>
+            {resetError && <p className="text-red-600 text-sm">{resetError}</p>}
+            {resetSuccess && <p className="text-green-600 text-sm">{resetSuccess}</p>}
+            <button
+              type="submit"
+              disabled={resetLoading}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold rounded-lg"
+            >
+              {resetLoading ? 'Alterando...' : 'Alterar senha'}
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Convite - Cap. Cavaleiros do Guaporé nº 862</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; -webkit-font-smoothing: antialiased;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f1f5f9;">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 520px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); overflow: hidden;">
+          <!-- Header com logo -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%); padding: 32px 40px; text-align: center;">
+              <img src="{{ .SiteURL }}/logocapitulo.png" alt="Logo" width="100" height="100" style="display: inline-block; border-radius: 50%; border: 3px solid rgba(255,255,255,0.3); object-fit: contain; background: white;">
+              <p style="margin: 16px 0 0; color: #ffffff; font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">
+                Cap. Cavaleiros do Guaporé nº 862
+              </p>
+              <p style="margin: 4px 0 0; color: rgba(255,255,255,0.9); font-size: 13px;">
+                Ordem DeMolay · Fraternidade, Reverência e Companheirismo
+              </p>
+            </td>
+          </tr>
+          <!-- Conteúdo -->
+          <tr>
+            <td style="padding: 40px;">
+              <h1 style="margin: 0 0 16px; color: #1e293b; font-size: 22px; font-weight: 700;">
+                Você foi convidado!
+              </h1>
+              <p style="margin: 0 0 16px; color: #64748b; font-size: 16px; line-height: 1.6;">
+                Olá{{ if .Data.name }}, {{ .Data.name }}{{ end }}!
+              </p>
+              <p style="margin: 0 0 24px; color: #64748b; font-size: 16px; line-height: 1.6;">
+                Você foi convidado para fazer parte do painel interno do Capítulo Cavaleiros do Guaporé nº 862. 
+                Clique no botão abaixo para criar sua senha e acessar sua conta.
+              </p>
+              <!-- Botão CTA -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td style="text-align: center;">
+                    <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%); color: #ffffff !important; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 8px; box-shadow: 0 2px 4px rgba(30, 64, 175, 0.3);">
+                      Criar senha e acessar
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin: 24px 0 0; color: #94a3b8; font-size: 13px; line-height: 1.5;">
+                Se o botão não funcionar, copie e cole o link abaixo no seu navegador:
+              </p>
+              <p style="margin: 8px 0 0; color: #1e40af; font-size: 12px; word-break: break-all;">
+                {{ .ConfirmationURL }}
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px; background-color: #f8fafc; border-top: 1px solid #e2e8f0;">
+              <p style="margin: 0; color: #94a3b8; font-size: 12px; text-align: center;">
+                Este convite foi enviado para <strong>{{ .Email }}</strong>
+              </p>
+              <p style="margin: 12px 0 0; color: #94a3b8; font-size: 11px; text-align: center;">
+                Capítulo Cavaleiros do Guaporé nº 862 · Ordem DeMolay
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
