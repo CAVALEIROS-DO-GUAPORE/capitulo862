@@ -5,11 +5,33 @@ import { memberDescriptions } from '@/data/mock';
 import MemberSection from '@/components/MemberSection';
 import type { Member } from '@/types';
 
-const DEMOLAY_DIRECTOR_ROLES = ['Mestre Conselheiro', '1º Conselheiro', '2º Conselheiro'];
+// Cargos da diretoria DeMolay: cada chave é o nome de exibição; o array são variantes aceitas (inclui slug do painel)
+const DEMOLAY_DIRECTOR_MAP: Record<string, string[]> = {
+  'Mestre Conselheiro': ['Mestre Conselheiro', 'mestre_conselheiro', 'Mestre conselheiro'],
+  '1º Conselheiro': ['1º Conselheiro', '1º conselheiro', 'primeiro_conselheiro', '1o Conselheiro'],
+  '2º Conselheiro': ['2º Conselheiro', '2º conselheiro', 'segundo_conselheiro', '2o Conselheiro'],
+};
+const DEMOLAY_DIRECTOR_ROLES = Object.keys(DEMOLAY_DIRECTOR_MAP);
+const DEMOLAY_DIRECTOR_VARIANTS = new Set(Object.values(DEMOLAY_DIRECTOR_MAP).flat());
+
 const DEMOLAY_SECRETARY_ROLES = ['Escrivão', 'Hospitaleiro', 'Tesoureiro'];
 const SENIOR_DIRECTOR_ROLES = ['Presidente', 'Vice-Presidente'];
 const CONSULTIVO_DIRECTOR_ROLES = ['Presidente', 'Membro Organizador'];
 const ESCUDEIRO_DIRECTOR_ROLES = ['Mestre Escudeiro', '1º Escudeiro', '2º Escudeiro'];
+
+/** Retorna o cargo de exibição para a página (ex.: primeiro_conselheiro → 1º Conselheiro) */
+function roleToDisplay(role: string): string {
+  if (!role?.trim()) return role;
+  const r = role.trim();
+  for (const [display, variants] of Object.entries(DEMOLAY_DIRECTOR_MAP)) {
+    if (variants.some((v) => v.toLowerCase() === r.toLowerCase())) return display;
+  }
+  return role;
+}
+
+function isDemolayDirectorRole(role: string): boolean {
+  return DEMOLAY_DIRECTOR_VARIANTS.has(role) || Array.from(DEMOLAY_DIRECTOR_VARIANTS).some((v) => v.toLowerCase() === role?.trim().toLowerCase());
+}
 
 type SectionId = 'demolays' | 'seniores' | 'consultores' | 'escudeiros';
 
@@ -49,7 +71,7 @@ export default function MembrosPage() {
 
   const demolaysAll = membersInCategory('demolays');
   const demolaysDirectors = demolaysAll.filter((m) =>
-    DEMOLAY_DIRECTOR_ROLES.includes(roleInSection(m, 'demolays'))
+    isDemolayDirectorRole(roleInSection(m, 'demolays'))
   );
   const demolaysSecretaries = demolaysAll.filter((m) =>
     DEMOLAY_SECRETARY_ROLES.includes(roleInSection(m, 'demolays'))
@@ -101,7 +123,7 @@ export default function MembrosPage() {
             title={memberDescriptions.demolays.title}
             description={memberDescriptions.demolays.description}
             members={withSectionRole(demolaysAll, 'demolays')}
-            directors={withSectionRole(demolaysDirectors, 'demolays')}
+            directors={withSectionRole(demolaysDirectors, 'demolays').map((m) => ({ ...m, role: roleToDisplay(m.role) }))}
             secretaries={withSectionRole(demolaysSecretaries, 'demolays')}
             otherLabel="Demais Membros"
           />

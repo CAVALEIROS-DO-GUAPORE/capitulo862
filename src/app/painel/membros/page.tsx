@@ -12,6 +12,13 @@ const CATEGORIES = [
   { value: 'escudeiros', label: 'Escudeiros' },
 ];
 
+const ROLES_BY_CATEGORY: Record<string, string[]> = {
+  demolays: ['Mestre Conselheiro', '1º Conselheiro', '2º Conselheiro', 'Escrivão', 'Hospitaleiro', 'Tesoureiro', 'Orador', '1º Diácono', '2º Diácono', 'Mestre de Cerimônias', 'Capitão da Guarda', 'Membro'],
+  seniores: ['Presidente', 'Vice-Presidente', 'Secretário', 'Tesoureiro', 'Membro'],
+  consultores: ['Presidente', 'Membro Organizador', 'Consultor', 'Membro'],
+  escudeiros: ['Mestre Escudeiro', '1º Escudeiro', '2º Escudeiro', 'Escudeiro'],
+};
+
 export default function PainelMembrosPage() {
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -337,14 +344,23 @@ export default function PainelMembrosPage() {
               </div>
               <div>
                 <label className="block text-slate-700 text-sm mb-1">Cargo *</label>
-                <input
-                  type="text"
-                  required
+                <select
                   value={form.role}
                   onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                  placeholder="Ex: Mestre Conselheiro"
-                />
+                  required
+                >
+                  <option value="">Selecione o cargo</option>
+                  {[
+                    ...(form.role && !(ROLES_BY_CATEGORY[form.category] ?? []).includes(form.role) ? [form.role] : []),
+                    ...(ROLES_BY_CATEGORY[form.category] ?? []),
+                  ].map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+                {form.role && !(ROLES_BY_CATEGORY[form.category] ?? []).includes(form.role) && (
+                  <p className="text-amber-600 text-xs mt-1">Selecione &quot;1º Conselheiro&quot; ou &quot;2º Conselheiro&quot; para aparecer na diretoria na página Nossos Membros.</p>
+                )}
               </div>
               <div>
                 <label className="block text-slate-700 text-sm mb-1">Categoria principal *</label>

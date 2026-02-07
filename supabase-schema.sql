@@ -44,13 +44,31 @@ CREATE TABLE IF NOT EXISTS news (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Tabela de atas internas
+-- Tabela de atas internas (execute supabase-migrate-data.sql se a tabela já existir com menos colunas)
 CREATE TABLE IF NOT EXISTS minutes (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   title TEXT NOT NULL,
   content TEXT NOT NULL,
   author_id UUID REFERENCES auth.users(id),
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  status TEXT DEFAULT 'rascunho',
+  ata_number INT,
+  ata_year INT,
+  date DATE,
+  start_time TEXT,
+  end_time TEXT,
+  type TEXT,
+  our_lodge BOOLEAN DEFAULT true,
+  location_name TEXT,
+  city TEXT,
+  roll_call_id UUID,
+  roll_call_date DATE,
+  presiding_mc TEXT,
+  presiding_1c TEXT,
+  presiding_2c TEXT,
+  tios_presentes JSONB DEFAULT '[]',
+  trabalhos_texto TEXT,
+  escrivao_name TEXT
 );
 
 -- Tabela de calendário
