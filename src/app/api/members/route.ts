@@ -15,7 +15,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, role, category, order, photo } = body;
+    const { name, role, category, order, photo, phone } = body;
 
     if (!name || !role || !category) {
       return NextResponse.json({ error: 'Nome, cargo e categoria são obrigatórios' }, { status: 400 });
@@ -29,6 +29,7 @@ export async function POST(request: Request) {
       category: category as Member['category'],
       order: typeof order === 'number' ? order : members.length + 1,
       photo: photo || undefined,
+      phone: phone ? String(phone).trim() : undefined,
     };
 
     members.push(newMember);

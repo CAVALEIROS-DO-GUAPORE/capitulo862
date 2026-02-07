@@ -41,7 +41,12 @@ export default function PainelLayout({
         const stored = sessionStorage.getItem('dm_user');
         if (stored) {
           try {
-            setUser(JSON.parse(stored));
+            const parsed = JSON.parse(stored);
+            if (!parsed.id && session.user.id) {
+              parsed.id = session.user.id;
+              sessionStorage.setItem('dm_user', JSON.stringify(parsed));
+            }
+            setUser(parsed);
           } catch {
             const { data: profile } = await supabase
               .from('profiles')
@@ -94,7 +99,12 @@ export default function PainelLayout({
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    function onUserUpdated() {
+    function onUserUpdated(e: Event) {
+      const customEvent = e as CustomEvent<SessionUser | undefined>;
+      if (customEvent.detail) {
+        setUser(customEvent.detail);
+        return;
+      }
       const stored = sessionStorage.getItem('dm_user');
       if (stored) {
         try {

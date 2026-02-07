@@ -24,7 +24,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, role, category, order, photo } = body;
+    const { name, role, category, order, photo, phone } = body;
 
     const members = await getMembers();
     const index = members.findIndex((m) => m.id === id);
@@ -35,6 +35,7 @@ export async function PATCH(
     if (category !== undefined) members[index].category = category as Member['category'];
     if (order !== undefined) members[index].order = Number(order);
     if (photo !== undefined) members[index].photo = photo || undefined;
+    if (phone !== undefined) members[index].phone = phone ? String(phone).trim() : undefined;
 
     await saveMembers(members);
     return NextResponse.json(members[index]);

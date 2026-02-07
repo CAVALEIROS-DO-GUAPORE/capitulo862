@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
 interface Profile {
@@ -17,6 +17,7 @@ interface Profile {
 
 export default function PerfilPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const trocarSenha = searchParams.get('trocar') === '1';
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -150,7 +151,9 @@ export default function PerfilPage() {
           const u = JSON.parse(stored);
           u.avatarUrl = data.avatarUrl;
           sessionStorage.setItem('dm_user', JSON.stringify(u));
-          if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('dm_user_updated'));
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('dm_user_updated', { detail: u }));
+          }
         } catch {}
       }
     } catch (err) {
@@ -195,6 +198,7 @@ export default function PerfilPage() {
           sessionStorage.setItem('dm_user', JSON.stringify(u));
         } catch {}
       }
+      router.replace('/painel/perfil');
     } catch (err) {
       setPasswordError(err instanceof Error ? err.message : 'Erro ao alterar senha');
     } finally {

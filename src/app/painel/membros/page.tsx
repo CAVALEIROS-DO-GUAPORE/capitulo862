@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import type { Member, MemberCategory } from '@/types';
 
@@ -17,15 +18,16 @@ export default function PainelMembrosPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<'add' | 'edit' | null>(null);
   const [editing, setEditing] = useState<Member | null>(null);
-  const [form, setForm] = useState<{ name: string; role: string; category: MemberCategory; order: number }>({
+  const [form, setForm] = useState<{ name: string; role: string; category: MemberCategory; order: number; phone: string }>({
     name: '',
     role: '',
     category: 'demolays',
     order: 0,
+    phone: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-
+  const [viewing, setViewing] = useState<Member | null>(null);
   const canManage = user?.role && ['admin', 'mestre_conselheiro', 'primeiro_conselheiro'].includes(user.role);
 
   useEffect(() => {
@@ -60,21 +62,30 @@ export default function PainelMembrosPage() {
 
   function openAdd() {
     setEditing(null);
-    setForm({ name: '', role: '', category: 'demolays', order: members.length + 1 });
+    setViewing(null);
+    setForm({ name: '', role: '', category: 'demolays', order: members.length + 1, phone: '' });
     setModal('add');
     setError('');
   }
 
   function openEdit(m: Member) {
     setEditing(m);
-    setForm({ name: m.name, role: m.role, category: m.category, order: m.order });
+    setViewing(null);
+    setForm({ name: m.name, role: m.role, category: m.category, order: m.order, phone: m.phone || '' });
     setModal('edit');
     setError('');
+  }
+
+  function openProfile(m: Member) {
+    setViewing(m);
+    setModal(null);
+    setEditing(null);
   }
 
   function closeModal() {
     setModal(null);
     setEditing(null);
+    setViewing(null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -137,9 +148,7 @@ export default function PainelMembrosPage() {
         )}
       </div>
       <p className="text-slate-600 mb-6">
-        {canManage
-          ? 'MC, 1º Conselheiro e Admin podem cadastrar, editar e excluir membros.'
-          : 'Você não tem permissão para gerenciar membros.'}
+        Todos podem ver a lista e o perfil (foto, cargo, telefone). Apenas MC, 1º Conselheiro e Admin podem cadastrar, editar e excluir.
       </p>
 
       {loading ? (
@@ -149,36 +158,56 @@ export default function PainelMembrosPage() {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
+                <th className="py-3 px-4 text-slate-600 font-medium w-12">Foto</th>
                 <th className="py-3 px-4 text-slate-600 font-medium">Nome</th>
                 <th className="py-3 px-4 text-slate-600 font-medium">Cargo</th>
                 <th className="py-3 px-4 text-slate-600 font-medium">Categoria</th>
-                {canManage && <th className="py-3 px-4 text-slate-600 font-medium w-24">Ações</th>}
+                <th className="py-3 px-4 text-slate-600 font-medium">Ações</th>
               </tr>
             </thead>
             <tbody>
               {members.map((m) => (
                 <tr key={m.id} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="py-3 px-4">
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 shrink-0 relative">
+                      {m.photo ? (
+                        <Image src={m.photo} alt="" fill className="object-cover" unoptimized={m.photo?.includes('supabase')} />
+                      ) : (
+                        <span className="w-full h-full flex items-center justify-center text-slate-400 text-sm font-medium">
+                          {m.name?.charAt(0)?.toUpperCase() || '?'}
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="py-3 px-4 text-slate-700">{m.name}</td>
                   <td className="py-3 px-4 text-blue-800 font-medium">{m.role}</td>
                   <td className="py-3 px-4 text-slate-600 capitalize">{m.category}</td>
-                  {canManage && (
-                    <td className="py-3 px-4">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => openEdit(m)}
-                          className="text-blue-600 hover:underline text-sm"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => handleDelete(m.id)}
-                          className="text-red-600 hover:underline text-sm"
-                        >
-                          Excluir
-                        </button>
-                      </div>
-                    </td>
-                  )}
+                  <td className="py-3 px-4">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => openProfile(m)}
+                        className="text-blue-600 hover:underline text-sm"
+                      >
+                        Ver perfil
+                      </button>
+                      {canManage && (
+                        <>
+                          <button
+                            onClick={() => openEdit(m)}
+                            className="text-blue-600 hover:underline text-sm"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleDelete(m.id)}
+                            className="text-red-600 hover:underline text-sm"
+                          >
+                            Excluir
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -186,6 +215,42 @@ export default function PainelMembrosPage() {
           {members.length === 0 && (
             <p className="py-8 text-center text-slate-500">Nenhum membro cadastrado.</p>
           )}
+        </div>
+      )}
+
+      {viewing && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={closeModal}>
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-blue-800 mb-4 text-center">Perfil do Membro</h2>
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-24 h-24 rounded-full overflow-hidden bg-slate-100 shrink-0 relative">
+                {viewing.photo ? (
+                  <Image src={viewing.photo} alt="" fill className="object-cover" unoptimized={viewing.photo?.includes('supabase')} />
+                ) : (
+                  <span className="w-full h-full flex items-center justify-center text-slate-400 text-2xl font-medium">
+                    {viewing.name?.charAt(0)?.toUpperCase() || '?'}
+                  </span>
+                )}
+              </div>
+              <div className="w-full space-y-2 text-center">
+                <p className="font-semibold text-slate-800 text-lg">{viewing.name}</p>
+                <p className="text-blue-800 font-medium">{viewing.role}</p>
+                <p className="text-slate-600 text-sm capitalize">{CATEGORIES.find((c) => c.value === viewing.category)?.label ?? viewing.category}</p>
+                {viewing.phone && (
+                  <p className="text-slate-600 text-sm">
+                    <span className="text-slate-500">Telefone:</span> {viewing.phone}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={closeModal}
+                className="w-full py-2 border border-slate-300 rounded-lg text-slate-700"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -228,6 +293,16 @@ export default function PainelMembrosPage() {
                     <option key={c.value} value={c.value}>{c.label}</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="block text-slate-700 text-sm mb-1">Telefone (opcional)</label>
+                <input
+                  type="tel"
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  placeholder="(00) 00000-0000"
+                />
               </div>
               <div>
                 <label className="block text-slate-700 text-sm mb-1">Ordem</label>

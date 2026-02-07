@@ -28,6 +28,7 @@ export interface Member {
   category: MemberCategory;
   order: number;
   userId?: string;
+  phone?: string;
 }
 
 export interface News {
