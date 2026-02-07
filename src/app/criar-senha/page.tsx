@@ -18,20 +18,20 @@ export default function CriarSenhaPage() {
     const supabase = createClient();
 
     async function checkSession() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setSessionReady(true);
-        setCheckingSession(false);
-        return;
-      }
       const hasHash = typeof window !== 'undefined' && window.location.hash?.length > 0;
-      if (hasHash) {
-        await new Promise((r) => setTimeout(r, 800));
-        const { data: { session: sessionAfter } } = await supabase.auth.getSession();
-        setSessionReady(!!sessionAfter);
-      } else {
-        setSessionReady(false);
+
+      for (let attempt = 0; attempt < (hasHash ? 4 : 1); attempt++) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setSessionReady(true);
+          setCheckingSession(false);
+          return;
+        }
+        if (hasHash && attempt < 3) {
+          await new Promise((r) => setTimeout(r, 500));
+        }
       }
+      setSessionReady(false);
       setCheckingSession(false);
     }
 
@@ -56,9 +56,12 @@ export default function CriarSenhaPage() {
 
       const { error: updateError } = await supabase.auth.updateUser({ password: senha });
       if (updateError) {
-        setError(updateError.message === 'New password should be different from the old password.'
-          ? 'Escolha uma senha diferente.'
-          : updateError.message);
+        const isDifferentPasswordError = updateError.message?.toLowerCase().includes('different') && updateError.message?.toLowerCase().includes('password');
+        if (isDifferentPasswordError) {
+          setError('Use uma senha que você ainda não tenha usado nesta conta. Se você já definiu uma senha antes, vá para o login. Caso contrário, tente outra senha (com letras e números).');
+        } else {
+          setError(updateError.message || 'Não foi possível definir a senha. Tente outra senha (mín. 6 caracteres, use letras e números).');
+        }
         return;
       }
 
@@ -75,7 +78,7 @@ export default function CriarSenhaPage() {
         .single();
 
       if (profileError || !profile) {
-        setError('Perfil não encontrado. Entre em contato com o Capítulo.');
+        setError('Conta ainda não está pronta. Entre em contato com o Capítulo ou peça um novo convite por email.');
         return;
       }
 
