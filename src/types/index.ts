@@ -42,12 +42,40 @@ export interface News {
   authorId?: string;
 }
 
+export type AtaType = 'RITUALISTICA' | 'ADMINISTRATIVA' | 'EVENTO' | 'OUTROS';
+
+export interface RollCall {
+  id: string;
+  date: string;
+  attendance: Record<string, boolean>;
+  createdAt: string;
+  authorId: string;
+}
+
 export interface InternalMinutes {
   id: string;
   title: string;
   content: string;
   createdAt: string;
   authorId: string;
+  status?: 'rascunho' | 'publicada';
+  ataNumber?: number;
+  ataYear?: number;
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  type?: AtaType;
+  ourLodge?: boolean;
+  locationName?: string;
+  city?: string;
+  rollCallId?: string;
+  rollCallDate?: string;
+  presidingMc?: string;
+  presiding1c?: string;
+  presiding2c?: string;
+  tiosPresentes?: string[];
+  trabalhosTexto?: string;
+  escrivaoName?: string;
 }
 
 export interface FinanceEntry {

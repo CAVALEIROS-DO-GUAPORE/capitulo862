@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('id, email, name, phone, birth_date, avatar_url, role')
+    .select('id, email, name, phone, birth_date, avatar_url, signature_url, role')
     .eq('id', user.id)
     .single();
 
@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     ...profile,
     birthDate: profile.birth_date,
     avatarUrl: profile.avatar_url,
+    signatureUrl: profile.signature_url,
   });
 }
 
@@ -41,13 +42,14 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { name, phone, birthDate, avatarUrl } = body;
+  const { name, phone, birthDate, avatarUrl, signatureUrl } = body;
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (name !== undefined) updates.name = String(name).trim();
   if (phone !== undefined) updates.phone = phone ? String(phone).trim() : null;
   if (birthDate !== undefined) updates.birth_date = birthDate || null;
   if (avatarUrl !== undefined) updates.avatar_url = avatarUrl || null;
+  if (signatureUrl !== undefined) updates.signature_url = signatureUrl || null;
 
   const { data, error } = await supabase
     .from('profiles')
@@ -64,5 +66,6 @@ export async function PATCH(request: NextRequest) {
     ...data,
     birthDate: data.birth_date,
     avatarUrl: data.avatar_url,
+    signatureUrl: data.signature_url,
   });
 }

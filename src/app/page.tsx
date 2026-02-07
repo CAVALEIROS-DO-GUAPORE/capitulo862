@@ -6,8 +6,8 @@ export default function HomePage() {
   return (
     <div>
       <section
-        className="relative py-20 px-4 min-h-[70vh] flex items-center justify-center bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: 'url(/fundodm.png)' }}
+        className="relative py-20 px-4 min-h-[70vh] flex items-center justify-center bg-cover bg-no-repeat"
+        style={{ backgroundImage: 'url(/fundodm.png)', backgroundPosition: 'center 25%' }}
       >
         <div className="absolute inset-0 bg-blue-900/70" aria-hidden />
         <div className="relative z-10 max-w-4xl mx-auto text-center">

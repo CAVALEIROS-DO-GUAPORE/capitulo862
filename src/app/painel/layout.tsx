@@ -164,6 +164,7 @@ export default function PainelLayout({
     { href: '/painel/membros', label: 'Membros' },
     { href: '/painel/noticias', label: 'Notícias' },
     { href: '/painel/calendario', label: 'Calendário' },
+    { href: '/painel/chamada', label: 'Chamada' },
     { href: '/painel/atas', label: 'Atas' },
     { href: '/painel/financas', label: 'Finanças' },
   ];

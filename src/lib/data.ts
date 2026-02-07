@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { mockMembers, mockNews } from '@/data/mock';
-import type { Member, News, InternalMinutes, FinanceEntry, CalendarEvent } from '@/types';
+import type { Member, News, InternalMinutes, FinanceEntry, CalendarEvent, RollCall } from '@/types';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 
@@ -32,6 +32,7 @@ async function writeJson(file: string, data: unknown) {
 const MEMBERS_FILE = 'members.json';
 const NEWS_FILE = 'news.json';
 const MINUTES_FILE = 'minutes.json';
+const ROLL_CALLS_FILE = 'roll-calls.json';
 const FINANCE_FILE = 'finance.json';
 const CALENDAR_FILE = 'calendar.json';
 
@@ -57,6 +58,20 @@ export async function getMinutes(): Promise<InternalMinutes[]> {
 
 export async function saveMinutes(minutes: InternalMinutes[]) {
   await writeJson(MINUTES_FILE, minutes);
+}
+
+export function getNextAtaNumber(minutes: InternalMinutes[], year: number): number {
+  const published = minutes.filter((m) => m.status === 'publicada' && m.ataYear === year);
+  const maxNum = published.reduce((max, m) => Math.max(max, m.ataNumber ?? 0), 0);
+  return maxNum + 1;
+}
+
+export async function getRollCalls(): Promise<RollCall[]> {
+  return readJson<RollCall[]>(ROLL_CALLS_FILE, []);
+}
+
+export async function saveRollCalls(rollCalls: RollCall[]) {
+  await writeJson(ROLL_CALLS_FILE, rollCalls);
 }
 
 export async function getFinanceEntries(): Promise<FinanceEntry[]> {

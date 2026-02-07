@@ -2,18 +2,51 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import type { InternalMinutes } from '@/types';
+import type { InternalMinutes, AtaType } from '@/types';
+import type { Member } from '@/types';
+
+const ATA_TYPES: { value: AtaType; label: string }[] = [
+  { value: 'RITUALISTICA', label: 'Ritualística' },
+  { value: 'ADMINISTRATIVA', label: 'Administrativa' },
+  { value: 'EVENTO', label: 'Evento' },
+  { value: 'OUTROS', label: 'Outros' },
+];
+
+const defaultForm = {
+  title: '',
+  content: '',
+  status: 'rascunho' as 'rascunho' | 'publicada',
+  date: new Date().toISOString().slice(0, 10),
+  startTime: '',
+  endTime: '',
+  type: 'ADMINISTRATIVA' as AtaType,
+  ourLodge: true,
+  locationName: '',
+  city: '',
+  rollCallDate: '',
+  presidingMc: '',
+  presiding1c: '',
+  presiding2c: '',
+  tiosPresentes: [] as string[],
+  trabalhosTexto: '',
+  escrivaoName: '',
+};
+
+type FormState = typeof defaultForm;
 
 export default function PainelAtasPage() {
-  const [user, setUser] = useState<{ role: string } | null>(null);
+  const [user, setUser] = useState<{ role: string; name?: string } | null>(null);
   const [minutes, setMinutes] = useState<InternalMinutes[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<'add' | 'edit' | null>(null);
   const [editing, setEditing] = useState<InternalMinutes | null>(null);
-  const [form, setForm] = useState({ title: '', content: '' });
+  const [form, setForm] = useState<FormState>(defaultForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [viewing, setViewing] = useState<InternalMinutes | null>(null);
+  const [pullRollCallDate, setPullRollCallDate] = useState('');
+  const [tioManual, setTioManual] = useState('');
 
   const canPost = user?.role && ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'escrivao'].includes(user.role);
 
@@ -21,7 +54,9 @@ export default function PainelAtasPage() {
     const stored = sessionStorage.getItem('dm_user');
     if (stored) {
       try {
-        setUser(JSON.parse(stored));
+        const u = JSON.parse(stored);
+        setUser(u);
+        if (!form.escrivaoName && u.name) setForm((f) => ({ ...f, escrivaoName: u.name || '' }));
       } catch {}
     }
   }, []);
@@ -34,9 +69,17 @@ export default function PainelAtasPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const loadMembers = useCallback(() => {
+    fetch('/api/members')
+      .then((r) => r.json())
+      .then((data) => setMembers(Array.isArray(data) ? data : []))
+      .catch(() => setMembers([]));
+  }, []);
+
   useEffect(() => {
     loadMinutes();
-  }, [loadMinutes]);
+    loadMembers();
+  }, [loadMinutes, loadMembers]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -49,14 +92,43 @@ export default function PainelAtasPage() {
 
   function openAdd() {
     setEditing(null);
-    setForm({ title: '', content: '' });
+    setForm({
+      ...defaultForm,
+      date: new Date().toISOString().slice(0, 10),
+      escrivaoName: user?.name || '',
+    });
     setModal('add');
     setError('');
   }
 
-  function openEdit(m: InternalMinutes) {
+  async function openEdit(m: InternalMinutes) {
     setEditing(m);
-    setForm({ title: m.title, content: m.content });
+    const res = await fetch(`/api/minutes/${m.id}`);
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error || 'Erro ao carregar ata');
+      return;
+    }
+    const mm = data as InternalMinutes;
+    setForm({
+      title: mm.title || '',
+      content: mm.content || '',
+      status: (mm.status || 'rascunho') as 'rascunho' | 'publicada',
+      date: mm.date || new Date().toISOString().slice(0, 10),
+      startTime: mm.startTime || '',
+      endTime: mm.endTime || '',
+      type: (mm.type || 'ADMINISTRATIVA') as AtaType,
+      ourLodge: mm.ourLodge !== false,
+      locationName: mm.locationName || '',
+      city: mm.city || '',
+      rollCallDate: mm.rollCallDate || '',
+      presidingMc: mm.presidingMc || '',
+      presiding1c: mm.presiding1c || '',
+      presiding2c: mm.presiding2c || '',
+      tiosPresentes: Array.isArray(mm.tiosPresentes) ? mm.tiosPresentes : [],
+      trabalhosTexto: mm.trabalhosTexto || '',
+      escrivaoName: mm.escrivaoName || user?.name || '',
+    });
     setModal('edit');
     setError('');
   }
@@ -66,16 +138,65 @@ export default function PainelAtasPage() {
     setEditing(null);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function pullFromRollCall() {
+    const date = pullRollCallDate || form.rollCallDate;
+    if (!date) {
+      setError('Informe a data da chamada para puxar os presentes.');
+      return;
+    }
+    setError('');
+    try {
+      const [rollRes, membersRes] = await Promise.all([
+        fetch(`/api/roll-calls?date=${encodeURIComponent(date)}`),
+        fetch('/api/members'),
+      ]);
+      const roll = await rollRes.json();
+      const mems = await membersRes.json() as Member[];
+      const attendance = roll?.attendance || {};
+      setForm((f) => ({
+        ...f,
+        rollCallDate: date,
+        presidingMc: mems.find((m) => m.role === 'mestre_conselheiro')?.name || '',
+        presiding1c: mems.find((m) => m.role === 'primeiro_conselheiro')?.name || '',
+        presiding2c: mems.find((m) => m.role === 'segundo_conselheiro')?.name || '',
+        tiosPresentes: mems
+          .filter((m) => m.category === 'consultores' && attendance[m.id])
+          .map((m) => m.name),
+      }));
+      setPullRollCallDate('');
+    } catch {
+      setError('Erro ao puxar dados da chamada.');
+    }
+  }
+
+  function addTioManual() {
+    const name = tioManual.trim();
+    if (!name) return;
+    setForm((f) => ({
+      ...f,
+      tiosPresentes: f.tiosPresentes.includes(name) ? f.tiosPresentes : [...f.tiosPresentes, name],
+    }));
+    setTioManual('');
+  }
+
+  function removeTio(name: string) {
+    setForm((f) => ({ ...f, tiosPresentes: f.tiosPresentes.filter((n) => n !== name) }));
+  }
+
+  async function handleSubmit(e: React.FormEvent, publish: boolean) {
     e.preventDefault();
     setSaving(true);
     setError('');
+    const payload = {
+      ...form,
+      status: publish ? 'publicada' : 'rascunho',
+    };
     try {
       if (editing) {
         const res = await fetch(`/api/minutes/${editing.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         });
         if (!res.ok) {
           const d = await res.json();
@@ -85,11 +206,11 @@ export default function PainelAtasPage() {
         const res = await fetch('/api/minutes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         });
         if (!res.ok) {
           const d = await res.json();
-          throw new Error(d.error || 'Erro ao publicar');
+          throw new Error(d.error || 'Erro ao salvar');
         }
       }
       loadMinutes();
@@ -127,10 +248,17 @@ export default function PainelAtasPage() {
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
+  const ataLabel = (m: InternalMinutes) => {
+    if (m.status === 'publicada' && m.ataNumber != null && m.ataYear != null) {
+      return `ATA nº ${String(m.ataNumber).padStart(3, '0')} / ${m.ataYear}`;
+    }
+    return 'Rascunho';
+  };
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-blue-800">Atas Internas</h1>
+        <h1 className="text-2xl font-bold text-blue-800">Atas</h1>
         {canPost && (
           <button
             onClick={openAdd}
@@ -141,7 +269,7 @@ export default function PainelAtasPage() {
         )}
       </div>
       <p className="text-slate-600 mb-6">
-        Atas das reuniões e assembleias.
+        Atas das reuniões. Salve como rascunho para editar depois ou publique para que todos os membros possam ver e baixar em PDF.
       </p>
 
       {loading ? (
@@ -159,12 +287,18 @@ export default function PainelAtasPage() {
                 }`}
                 onClick={() => setViewing(m)}
               >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-medium text-slate-500">{ataLabel(m)}</span>
+                  {m.status === 'rascunho' && (
+                    <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded">Rascunho</span>
+                  )}
+                </div>
                 <h3 className="font-bold text-blue-800">{m.title}</h3>
                 <p className="text-slate-500 text-sm">{formatDate(m.createdAt)}</p>
               </div>
             ))}
             {minutes.length === 0 && (
-              <p className="py-8 text-center text-slate-500 bg-white rounded-lg border">Nenhuma ata publicada.</p>
+              <p className="py-8 text-center text-slate-500 bg-white rounded-lg border">Nenhuma ata.</p>
             )}
           </div>
 
@@ -172,8 +306,11 @@ export default function PainelAtasPage() {
             {viewing ? (
               <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
                 <div className="flex justify-between items-start gap-4 mb-4">
-                  <h2 className="text-lg font-bold text-blue-800">{viewing.title}</h2>
-                  {canPost && (
+                  <div>
+                    <span className="text-sm text-slate-500">{ataLabel(viewing)}</span>
+                    <h2 className="text-lg font-bold text-blue-800">{viewing.title}</h2>
+                  </div>
+                  {canPost && (viewing.status === 'rascunho' || !viewing.status) && (
                     <div className="flex gap-2 shrink-0">
                       <button
                         onClick={() => openEdit(viewing)}
@@ -192,6 +329,18 @@ export default function PainelAtasPage() {
                 </div>
                 <p className="text-slate-500 text-sm mb-4">{formatDate(viewing.createdAt)}</p>
                 <div className="text-slate-700 whitespace-pre-wrap">{viewing.content}</div>
+                {viewing.status === 'publicada' && (
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    <a
+                      href={`/api/minutes/${viewing.id}/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
+                    >
+                      Baixar PDF
+                    </a>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="bg-slate-50 rounded-lg border border-slate-200 p-8 text-center text-slate-500">
@@ -204,11 +353,11 @@ export default function PainelAtasPage() {
 
       {modal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-bold text-blue-800 mb-4">
               {editing ? 'Editar Ata' : 'Nova Ata'}
             </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-4">
               <div>
                 <label className="block text-slate-700 text-sm mb-1">Título *</label>
                 <input
@@ -219,8 +368,188 @@ export default function PainelAtasPage() {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg"
                 />
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-700 text-sm mb-1">Data da reunião *</label>
+                  <input
+                    type="date"
+                    required
+                    value={form.date}
+                    onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 text-sm mb-1">Tipo</label>
+                  <select
+                    value={form.type}
+                    onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as AtaType }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  >
+                    {ATA_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-700 text-sm mb-1">Hora início</label>
+                  <input
+                    type="time"
+                    value={form.startTime}
+                    onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 text-sm mb-1">Hora término</label>
+                  <input
+                    type="time"
+                    value={form.endTime}
+                    onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="ourLodge"
+                  checked={form.ourLodge}
+                  onChange={(e) => setForm((f) => ({ ...f, ourLodge: e.target.checked }))}
+                  className="rounded border-slate-300"
+                />
+                <label htmlFor="ourLodge" className="text-slate-700 text-sm">Foi na nossa loja? (Augusta e Respeitável Loja Maçônica Estrela do Guaporé nº 63)</label>
+              </div>
+              {!form.ourLodge && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-slate-700 text-sm mb-1">Local</label>
+                    <input
+                      type="text"
+                      value={form.locationName}
+                      onChange={(e) => setForm((f) => ({ ...f, locationName: e.target.value }))}
+                      placeholder="Nome do local"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 text-sm mb-1">Cidade</label>
+                    <input
+                      type="text"
+                      value={form.city}
+                      onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                      placeholder="Cidade"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="border-t border-slate-200 pt-4">
+                <label className="block text-slate-700 text-sm mb-2">Puxar presentes da chamada</label>
+                <div className="flex gap-2 flex-wrap items-center">
+                  <input
+                    type="date"
+                    value={pullRollCallDate || form.rollCallDate}
+                    onChange={(e) => setPullRollCallDate(e.target.value)}
+                    className="px-3 py-2 border border-slate-300 rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={pullFromRollCall}
+                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm"
+                  >
+                    Puxar presença e presidência
+                  </button>
+                </div>
+                <p className="text-slate-500 text-xs mt-1">Selecione a data da chamada e clique para preencher presidência e tios presentes.</p>
+              </div>
+
               <div>
-                <label className="block text-slate-700 text-sm mb-1">Conteúdo *</label>
+                <label className="block text-slate-700 text-sm mb-1">Presidência</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <input
+                    type="text"
+                    value={form.presidingMc}
+                    onChange={(e) => setForm((f) => ({ ...f, presidingMc: e.target.value }))}
+                    placeholder="Mestre Conselheiro"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  />
+                  <input
+                    type="text"
+                    value={form.presiding1c}
+                    onChange={(e) => setForm((f) => ({ ...f, presiding1c: e.target.value }))}
+                    placeholder="1º Conselheiro"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  />
+                  <input
+                    type="text"
+                    value={form.presiding2c}
+                    onChange={(e) => setForm((f) => ({ ...f, presiding2c: e.target.value }))}
+                    placeholder="2º Conselheiro"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 text-sm mb-1">Tios presentes</label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={tioManual}
+                    onChange={(e) => setTioManual(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTioManual())}
+                    placeholder="Adicionar nome"
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg"
+                  />
+                  <button type="button" onClick={addTioManual} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm">
+                    +
+                  </button>
+                </div>
+                {form.tiosPresentes.length > 0 && (
+                  <ul className="flex flex-wrap gap-2">
+                    {form.tiosPresentes.map((n) => (
+                      <li key={n} className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded text-sm">
+                        {n}
+                        {canPost && (
+                          <button type="button" onClick={() => removeTio(n)} className="text-red-600 hover:underline">×</button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-slate-700 text-sm mb-1">Os trabalhos no grau... (ex.: grau iniciático, cerimônia pública, reunião administrativa)</label>
+                <input
+                  type="text"
+                  value={form.trabalhosTexto}
+                  onChange={(e) => setForm((f) => ({ ...f, trabalhosTexto: e.target.value }))}
+                  placeholder="ex.: grau iniciático começaram às 20h"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 text-sm mb-1">Escrivão (nome)</label>
+                <input
+                  type="text"
+                  value={form.escrivaoName}
+                  onChange={(e) => setForm((f) => ({ ...f, escrivaoName: e.target.value }))}
+                  placeholder="Nome do escrivão"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 text-sm mb-1">Conteúdo / Acontecimentos da reunião *</label>
                 <textarea
                   required
                   rows={8}
@@ -229,22 +558,33 @@ export default function PainelAtasPage() {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg resize-none"
                 />
               </div>
+
               {error && <p className="text-red-600 text-sm">{error}</p>}
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 pt-2 flex-wrap">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="flex-1 py-2 border border-slate-300 rounded-lg text-slate-700"
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
+                  className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg disabled:opacity-50"
                 >
-                  {saving ? 'Salvando...' : 'Salvar'}
+                  {saving ? 'Salvando...' : 'Salvar rascunho'}
                 </button>
+                {canPost && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleSubmit(e, true)}
+                    disabled={saving}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
+                  >
+                    {saving ? 'Salvando...' : 'Publicar'}
+                  </button>
+                )}
               </div>
             </form>
           </div>

@@ -12,6 +12,7 @@ interface Profile {
   phone: string | null;
   birthDate: string | null;
   avatarUrl: string | null;
+  signatureUrl: string | null;
   role: string;
 }
 
@@ -32,6 +33,7 @@ export default function PerfilPage() {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [signatureUploading, setSignatureUploading] = useState(false);
 
   async function getAuthHeaders(): Promise<HeadersInit> {
     const supabase = createClient();
@@ -164,6 +166,37 @@ export default function PerfilPage() {
     }
   }
 
+  async function handleSignatureChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSignatureUploading(true);
+    setError('');
+    try {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error('Não autorizado');
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/profile/signature', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao enviar assinatura');
+      setProfile((p) => (p ? { ...p, signatureUrl: data.signatureUrl } : p));
+      setSuccess('Assinatura atualizada. A imagem foi processada (fundo removido) e está pronta para uso nas atas.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao enviar assinatura');
+    } finally {
+      setSignatureUploading(false);
+      e.target.value = '';
+    }
+  }
+
   async function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
     setPasswordError('');
@@ -266,6 +299,41 @@ export default function PerfilPage() {
               />
             </label>
             <p className="text-slate-500 text-xs mt-2">JPG ou PNG, máx. 5MB</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Assinatura */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+        <h2 className="font-semibold text-blue-800 mb-4">Assinatura para atas</h2>
+        <p className="text-slate-600 text-sm mb-4">
+          Envie uma foto da sua assinatura (ex.: em papel branco). O sistema remove o fundo automaticamente para usar nas atas em PDF. Ao substituir, a assinatura antiga é removida do servidor.
+        </p>
+        <div className="flex flex-wrap items-start gap-6">
+          <div className="min-w-[200px] h-24 border border-slate-200 rounded-lg bg-slate-50 flex items-center justify-center overflow-hidden">
+            {profile.signatureUrl ? (
+              <img
+                src={profile.signatureUrl}
+                alt="Sua assinatura"
+                className="max-h-full w-auto object-contain"
+                style={{ mixBlendMode: 'multiply' }}
+              />
+            ) : (
+              <span className="text-slate-400 text-sm">Nenhuma assinatura enviada</span>
+            )}
+          </div>
+          <div>
+            <label className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium cursor-pointer disabled:opacity-50">
+              {signatureUploading ? 'Enviando e processando...' : profile.signatureUrl ? 'Substituir assinatura' : 'Enviar assinatura'}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleSignatureChange}
+                disabled={signatureUploading}
+              />
+            </label>
+            <p className="text-slate-500 text-xs mt-2">JPG ou PNG, máx. 2MB. Fundo claro será removido.</p>
           </div>
         </div>
       </div>
