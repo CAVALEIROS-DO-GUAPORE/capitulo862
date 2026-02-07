@@ -17,7 +17,7 @@ export async function POST(request: Request) {
         name: name || '',
         role: role || 'membro',
       },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) || 'http://localhost:3000'}/login`,
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) || 'http://localhost:3000'}/criar-senha`,
     });
 
     if (error) {
