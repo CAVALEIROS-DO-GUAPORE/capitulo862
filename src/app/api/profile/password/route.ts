@@ -29,5 +29,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
+  await supabase
+    .from('profiles')
+    .update({ must_change_password: false })
+    .eq('id', user.id);
+
   return NextResponse.json({ success: true });
 }

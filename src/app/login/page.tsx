@@ -55,14 +55,27 @@ export default function LoginPage() {
         return;
       }
 
+      let mustChangePassword = false;
+      const { data: flagRow, error: flagError } = await supabase
+        .from('profiles')
+        .select('must_change_password')
+        .eq('id', authData.user.id)
+        .single();
+      if (!flagError && flagRow?.must_change_password === true) mustChangePassword = true;
+
       sessionStorage.setItem('dm_user', JSON.stringify({
         email: profile.email || authData.user.email,
         role: profile.role || 'membro',
         name: profile.name || 'Membro',
         avatarUrl: profile.avatar_url || null,
+        mustChangePassword: mustChangePassword,
       }));
 
-      router.push('/painel');
+      if (mustChangePassword) {
+        router.push('/painel/perfil?trocar=1');
+      } else {
+        router.push('/painel');
+      }
       router.refresh();
     } catch (err) {
       setError('Erro ao fazer login. Tente novamente.');

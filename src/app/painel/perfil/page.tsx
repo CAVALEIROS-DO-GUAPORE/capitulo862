@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
 interface Profile {
@@ -15,8 +16,11 @@ interface Profile {
 }
 
 export default function PerfilPage() {
+  const searchParams = useSearchParams();
+  const trocarSenha = searchParams.get('trocar') === '1';
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -55,6 +59,17 @@ export default function PerfilPage() {
 
   useEffect(() => {
     loadProfile().finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = sessionStorage.getItem('dm_user');
+    if (stored) {
+      try {
+        const u = JSON.parse(stored);
+        setMustChangePassword(u.mustChangePassword === true);
+      } catch {}
+    }
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -148,6 +163,15 @@ export default function PerfilPage() {
       setPasswordSuccess('Senha alterada com sucesso.');
       setNewPassword('');
       setConfirmPassword('');
+      setMustChangePassword(false);
+      const stored = sessionStorage.getItem('dm_user');
+      if (stored) {
+        try {
+          const u = JSON.parse(stored);
+          u.mustChangePassword = false;
+          sessionStorage.setItem('dm_user', JSON.stringify(u));
+        } catch {}
+      }
     } catch (err) {
       setPasswordError(err instanceof Error ? err.message : 'Erro ao alterar senha');
     } finally {
@@ -171,9 +195,18 @@ export default function PerfilPage() {
     );
   }
 
+  const showTrocarSenhaBanner = trocarSenha || mustChangePassword;
+
   return (
     <div className="max-w-2xl space-y-8">
       <h1 className="text-2xl font-bold text-blue-800">Meu Perfil</h1>
+
+      {showTrocarSenhaBanner && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800">
+          <p className="font-medium">Altere sua senha padrão</p>
+          <p className="text-sm mt-1">Por segurança, defina uma nova senha abaixo. A senha inicial foi definida pelo administrador.</p>
+        </div>
+      )}
 
       {/* Avatar */}
       <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">

@@ -31,6 +31,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    if (!data.user) {
+      return NextResponse.json({ error: 'Erro ao criar usuário.' }, { status: 500 });
+    }
+
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert(
+        {
+          id: data.user.id,
+          email: data.user.email ?? email.trim(),
+          name: name || '',
+          role: role || 'membro',
+          active: true,
+        },
+        { onConflict: 'id' }
+      );
+
+    if (profileError) {
+      console.error('Erro ao criar perfil:', profileError);
+      return NextResponse.json(
+        { error: 'Usuário criado, mas perfil falhou. Entre em contato com o suporte.' },
+        { status: 500 }
+      );
+    }
+
+    await supabase
+      .from('profiles')
+      .update({ must_change_password: true })
+      .eq('id', data.user.id);
+
     return NextResponse.json({
       success: true,
       message: `Usuário criado. A senha padrão é "${SENHA_PADRAO}". O usuário pode trocá-la no perfil após o login.`,
