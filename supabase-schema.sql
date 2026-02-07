@@ -94,3 +94,6 @@ ALTER TABLE finance_entries ENABLE ROW LEVEL SECURITY;
 -- Políticas: members e news são públicos para leitura
 CREATE POLICY "members public read" ON members FOR SELECT USING (true);
 CREATE POLICY "news public read" ON news FOR SELECT USING (true);
+
+-- Política: usuários leem seu próprio perfil (necessário para login)
+CREATE POLICY "Users can read own profile" ON profiles FOR SELECT USING (auth.uid() = id);

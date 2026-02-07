@@ -49,6 +49,19 @@ Acesse [http://localhost:3000](http://localhost:3000).
    - `NEXT_PUBLIC_SUPABASE_URL` - URL do projeto
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Chave anônima (Settings > API)
 
+## Criar usuários (login)
+
+1. No Supabase: **Authentication** → **Users** → **Add user** → **Create new user**
+2. Preencha email e senha, marque **Auto Confirm User**
+3. Copie o **UID** do usuário criado
+4. No **SQL Editor**, execute:
+```sql
+INSERT INTO profiles (id, email, name, role)
+VALUES ('COLE_O_UID_AQUI', 'email@exemplo.com', 'Nome', 'admin')
+ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, role = EXCLUDED.role;
+```
+5. Roles: `admin`, `mestre_conselheiro`, `primeiro_conselheiro`, `escrivao`, `tesoureiro`, `membro`
+
 ## Deploy na Vercel
 
 1. Crie conta em [vercel.com](https://vercel.com)

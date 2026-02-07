@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -17,27 +18,45 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // TODO: Integrar com Supabase Auth
-      const testUsers: Record<string, { role: string; name: string }> = {
-        'admin@cavaleiros862.org': { role: 'admin', name: 'Administrador' },
-        'mestre@cavaleiros862.org': { role: 'mestre_conselheiro', name: 'Mestre Conselheiro' },
-        'primeiro@cavaleiros862.org': { role: 'primeiro_conselheiro', name: '1º Conselheiro' },
-      };
-      const testPassword = 'demolay862';
-      const user = testUsers[email.trim().toLowerCase()];
-      if (user && password === testPassword) {
-        sessionStorage.setItem('dm_user', JSON.stringify({
-          email: email.trim(),
-          role: user.role,
-          name: user.name,
-        }));
-        router.push('/painel');
-        router.refresh();
-      } else if (email && password) {
-        setError('Email ou senha incorretos.');
-      } else {
-        setError('Preencha email e senha.');
+      const supabase = createClient();
+
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (authError) {
+        setError(authError.message === 'Invalid login credentials'
+          ? 'Email ou senha incorretos.'
+          : authError.message);
+        return;
       }
+
+      if (!authData.user) {
+        setError('Erro ao fazer login. Tente novamente.');
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('email, name, role')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        await supabase.auth.signOut();
+        setError('Perfil não encontrado. Entre em contato com o Capítulo.');
+        return;
+      }
+
+      sessionStorage.setItem('dm_user', JSON.stringify({
+        email: profile.email || authData.user.email,
+        role: profile.role || 'membro',
+        name: profile.name || 'Membro',
+      }));
+
+      router.push('/painel');
+      router.refresh();
     } catch (err) {
       setError('Erro ao fazer login. Tente novamente.');
     } finally {
@@ -96,7 +115,6 @@ export default function LoginPage() {
               {loading ? 'Entrando...' : 'Entrar'}
             </button>
           </form>
-
         </div>
 
         <p className="mt-6 text-center text-slate-500 text-sm">

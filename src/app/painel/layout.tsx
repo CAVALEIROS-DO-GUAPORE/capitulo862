@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 interface SessionUser {
   email: string;
@@ -16,24 +17,77 @@ export default function PainelLayout({
   children: React.ReactNode;
 }) {
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const stored = sessionStorage.getItem('dm_user');
-    if (!stored) {
-      router.replace('/login');
-      return;
+
+    async function checkAuth() {
+      try {
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!session) {
+          sessionStorage.removeItem('dm_user');
+          router.replace('/login');
+          return;
+        }
+
+        const stored = sessionStorage.getItem('dm_user');
+        if (stored) {
+          try {
+            setUser(JSON.parse(stored));
+          } catch {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('email, name, role')
+              .eq('id', session.user.id)
+              .single();
+
+            if (profile) {
+              const userData = {
+                email: profile.email || session.user.email || '',
+                role: profile.role || 'membro',
+                name: profile.name || 'Membro',
+              };
+              sessionStorage.setItem('dm_user', JSON.stringify(userData));
+              setUser(userData);
+            } else {
+              router.replace('/login');
+            }
+          }
+        } else {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('email, name, role')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profile) {
+            const userData = {
+              email: profile.email || session.user.email || '',
+              role: profile.role || 'membro',
+              name: profile.name || 'Membro',
+            };
+            sessionStorage.setItem('dm_user', JSON.stringify(userData));
+            setUser(userData);
+          } else {
+            router.replace('/login');
+          }
+        }
+      } finally {
+        setLoading(false);
+      }
     }
-    try {
-      setUser(JSON.parse(stored));
-    } catch {
-      router.replace('/login');
-    }
+
+    checkAuth();
   }, [router]);
 
-  function handleLogout() {
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
     sessionStorage.removeItem('dm_user');
     router.replace('/login');
     router.refresh();
@@ -52,7 +106,7 @@ export default function PainelLayout({
     { href: '/painel/financas', label: 'Finanças' },
   ];
 
-  if (!user) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <p className="text-slate-600">Carregando...</p>
