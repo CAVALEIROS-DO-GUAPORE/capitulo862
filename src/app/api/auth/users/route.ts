@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createAuthenticatedClient } from '@/lib/supabase/api-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
-
-const ALLOWED_ROLES = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro'];
+import { MANAGER_ROLES } from '@/lib/auth-constants';
 
 export async function GET(request: NextRequest) {
   const supabase = createAuthenticatedClient(request);
@@ -22,7 +21,7 @@ export async function GET(request: NextRequest) {
     .eq('id', user.id)
     .single();
 
-  if (!profile || !ALLOWED_ROLES.includes(profile.role)) {
+  if (!profile || !MANAGER_ROLES.includes(profile.role)) {
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 });
   }
 

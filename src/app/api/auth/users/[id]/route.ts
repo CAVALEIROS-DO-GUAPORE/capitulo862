@@ -1,15 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createAuthenticatedClient } from '@/lib/supabase/api-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
-
-const ALLOWED_ROLES = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro'];
+import { MANAGER_ROLES, PANEL_ROLES, isPanelRole } from '@/lib/auth-constants';
 
 async function checkPermission(request: NextRequest) {
   const supabase = createAuthenticatedClient(request);
-  if (!supabase) return { authorized: false, admin: null as ReturnType<typeof createAdminClient> | null };
+  if (!supabase) return { authorized: false, admin: null as ReturnType<typeof createAdminClient> | null, currentRole: null as string | null };
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { authorized: false, admin: null };
+  if (!user) return { authorized: false, admin: null, currentRole: null };
 
   const admin = createAdminClient();
   const { data: profile } = await admin
@@ -18,20 +17,18 @@ async function checkPermission(request: NextRequest) {
     .eq('id', user.id)
     .single();
 
-  if (!profile || !ALLOWED_ROLES.includes(profile.role)) {
-    return { authorized: false, admin: null };
+  if (!profile || !MANAGER_ROLES.includes(profile.role)) {
+    return { authorized: false, admin: null, currentRole: null };
   }
 
-  return { authorized: true, admin };
+  return { authorized: true, admin, currentRole: profile.role };
 }
-
-const ALLOWED_ROLE_VALUES = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'segundo_conselheiro', 'escrivao', 'hospitaleiro', 'tesoureiro', 'membro', 'presidente_seniores', 'vice_presidente_seniores', 'senior', 'presidente_consultivo', 'membro_organizador', 'consultor', 'mestre_escudeiro', 'primeiro_escudeiro', 'segundo_escudeiro', 'escudeiro'];
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { authorized, admin } = await checkPermission(request);
+  const { authorized, admin, currentRole } = await checkPermission(request);
   if (!authorized || !admin) {
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 });
   }
@@ -40,10 +37,26 @@ export async function PATCH(
   const body = await request.json();
   const { active, role, name } = body;
 
+  // Mestre Conselheiro não pode definir ninguém como Admin
+  if (currentRole === 'mestre_conselheiro' && role === 'admin') {
+    return NextResponse.json({ error: 'Apenas Admin pode definir o cargo Admin.' }, { status: 403 });
+  }
+
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (typeof active === 'boolean') updates.active = active;
-  if (typeof role === 'string' && ALLOWED_ROLE_VALUES.includes(role)) updates.role = role;
   if (typeof name === 'string') updates.name = name.trim();
+
+  if (typeof role === 'string' && isPanelRole(role)) {
+    updates.role = role;
+    // Ao promover alguém a Mestre Conselheiro: rebaixar o atual para membro (gestão 6 em 6 meses)
+    if (role === 'mestre_conselheiro') {
+      await admin
+        .from('profiles')
+        .update({ role: 'membro', updated_at: new Date().toISOString() })
+        .eq('role', 'mestre_conselheiro')
+        .neq('id', id);
+    }
+  }
 
   if (Object.keys(updates).length <= 1) {
     return NextResponse.json({ error: 'Nenhum campo para atualizar (active, role ou name)' }, { status: 400 });

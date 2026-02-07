@@ -3,28 +3,17 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
-const ROLES = [
+// Cargos do painel (rank interno): só estes ao criar/editar usuário. Cargos do capítulo (ex.: Sênior, Consultor) ficam no cadastro de Membros.
+const PANEL_ROLES = [
   { value: 'membro', label: 'Membro' },
   { value: 'admin', label: 'Admin' },
   { value: 'mestre_conselheiro', label: 'Mestre Conselheiro' },
   { value: 'primeiro_conselheiro', label: '1º Conselheiro' },
-  { value: 'segundo_conselheiro', label: '2º Conselheiro' },
-  { value: 'escrivao', label: 'Escrivão' },
-  { value: 'hospitaleiro', label: 'Hospitaleiro' },
   { value: 'tesoureiro', label: 'Tesoureiro' },
-  { value: 'presidente_seniores', label: 'Presidente dos Sêniores' },
-  { value: 'vice_presidente_seniores', label: 'Vice-Presidente dos Sêniores' },
-  { value: 'senior', label: 'Sênior' },
-  { value: 'presidente_consultivo', label: 'Presidente Consultivo' },
-  { value: 'membro_organizador', label: 'Membro Organizador' },
-  { value: 'consultor', label: 'Consultor' },
-  { value: 'mestre_escudeiro', label: 'Mestre Escudeiro' },
-  { value: 'primeiro_escudeiro', label: '1º Escudeiro' },
-  { value: 'segundo_escudeiro', label: '2º Escudeiro' },
-  { value: 'escudeiro', label: 'Escudeiro' },
+  { value: 'escrivao', label: 'Escrivão' },
 ];
 
-const ROLE_LABELS: Record<string, string> = Object.fromEntries(ROLES.map((r) => [r.value, r.label]));
+const ROLE_LABELS: Record<string, string> = Object.fromEntries(PANEL_ROLES.map((r) => [r.value, r.label]));
 
 interface UserItem {
   id: string;
@@ -243,12 +232,12 @@ export default function PainelUsuariosPage() {
                       <td className="px-4 py-3 text-slate-600 text-sm">{u.email || '—'}</td>
                       <td className="px-4 py-3">
                         <select
-                          value={u.role}
+                          value={PANEL_ROLES.some((r) => r.value === u.role) ? u.role : 'membro'}
                           onChange={(e) => handleRoleChange(u, e.target.value)}
                           disabled={actionLoading === u.id}
                           className="text-sm border border-slate-200 rounded px-2 py-1 bg-white text-slate-700 disabled:opacity-50"
                         >
-                          {ROLES.map((r) => (
+                          {PANEL_ROLES.filter((r) => user?.role !== 'mestre_conselheiro' || r.value !== 'admin').map((r) => (
                             <option key={r.value} value={r.value}>{r.label}</option>
                           ))}
                         </select>
@@ -317,13 +306,13 @@ export default function PainelUsuariosPage() {
           />
         </div>
         <div>
-          <label className="block text-slate-700 text-sm font-medium mb-1">Cargo/Função</label>
+          <label className="block text-slate-700 text-sm font-medium mb-1">Cargo no painel</label>
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg"
           >
-            {ROLES.map((r) => (
+            {PANEL_ROLES.filter((r) => user?.role !== 'mestre_conselheiro' || r.value !== 'admin').map((r) => (
               <option key={r.value} value={r.value}>{r.label}</option>
             ))}
           </select>
