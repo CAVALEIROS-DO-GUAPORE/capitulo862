@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Member } from '@/types';
+import type { Member, MemberCategory } from '@/types';
 
 const CATEGORIES = [
   { value: 'demolays', label: 'DeMolays' },
@@ -16,7 +16,12 @@ export default function PainelMembrosPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<'add' | 'edit' | null>(null);
   const [editing, setEditing] = useState<Member | null>(null);
-  const [form, setForm] = useState({ name: '', role: '', category: 'demolays' as const, order: 0 });
+  const [form, setForm] = useState<{ name: string; role: string; category: MemberCategory; order: number }>({
+    name: '',
+    role: '',
+    category: 'demolays',
+    order: 0,
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
