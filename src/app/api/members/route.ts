@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getMembers, saveMembers, generateId } from '@/lib/data';
+import { getMembers, insertMember } from '@/lib/data';
 import type { Member } from '@/types';
 
 export async function GET() {
@@ -22,22 +22,19 @@ export async function POST(request: Request) {
     }
 
     const members = await getMembers();
-    const newMember: Member = {
-      id: generateId(),
+    const newMember = await insertMember({
       name: String(name).trim(),
       role: String(role).trim(),
       category: category as Member['category'],
       order: typeof order === 'number' ? order : members.length + 1,
       photo: photo || undefined,
       phone: phone ? String(phone).trim() : undefined,
-    };
-
-    members.push(newMember);
-    await saveMembers(members);
+    });
 
     return NextResponse.json(newMember);
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: 'Erro ao cadastrar membro' }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Erro ao cadastrar membro';
+    console.error('[members POST]', err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getMinutes, getRollCalls, getMembers } from '@/lib/data';
+import { getMinutes, getMembers, getRollCallByDate } from '@/lib/data';
 import { buildAtaPdf } from '@/lib/pdf-ata';
 
 export async function GET(
@@ -8,11 +8,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const [minutes, rollCalls, members] = await Promise.all([
-      getMinutes(),
-      getRollCalls(),
-      getMembers(),
-    ]);
+    const [minutes, members] = await Promise.all([getMinutes(), getMembers()]);
     const minute = minutes.find((m) => m.id === id);
     if (!minute) {
       return NextResponse.json({ error: 'Ata não encontrada' }, { status: 404 });
@@ -20,9 +16,7 @@ export async function GET(
     if (minute.status !== 'publicada') {
       return NextResponse.json({ error: 'Apenas atas publicadas podem ser exportadas em PDF' }, { status: 400 });
     }
-    const rollCall = minute.rollCallDate
-      ? rollCalls.find((r) => r.date === minute.rollCallDate) ?? null
-      : null;
+    const rollCall = minute.rollCallDate ? await getRollCallByDate(minute.rollCallDate) : null;
     const pdfBytes = await buildAtaPdf(minute, rollCall, members);
     const filename = `ata-${minute.ataNumber ?? '0'}-${minute.ataYear ?? ''}.pdf`;
     const buffer = Buffer.from(pdfBytes);

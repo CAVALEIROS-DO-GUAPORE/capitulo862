@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCalendarEvents, saveCalendarEvents } from '@/lib/data';
+import { getCalendarEvents, updateCalendarEvent, deleteCalendarEvent } from '@/lib/data';
 import type { CalendarEvent } from '@/types';
 
 export async function PATCH(
@@ -12,16 +12,18 @@ export async function PATCH(
     const { title, description, date, type } = body;
 
     const events = await getCalendarEvents();
-    const index = events.findIndex((e) => e.id === id);
-    if (index === -1) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 });
+    if (!events.find((e) => e.id === id)) {
+      return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 });
+    }
 
-    if (title !== undefined) events[index].title = String(title).trim();
-    if (description !== undefined) events[index].description = String(description).trim();
-    if (date !== undefined) events[index].date = String(date);
-    if (type !== undefined) events[index].type = ['ritualistica', 'evento', 'reuniao', 'outro'].includes(type) ? type : events[index].type;
+    const partial: Partial<CalendarEvent> = {};
+    if (title !== undefined) partial.title = String(title).trim();
+    if (description !== undefined) partial.description = String(description).trim();
+    if (date !== undefined) partial.date = String(date);
+    if (type !== undefined) partial.type = ['ritualistica', 'evento', 'reuniao', 'outro'].includes(type) ? type : undefined;
 
-    await saveCalendarEvents(events);
-    return NextResponse.json(events[index]);
+    const updated = await updateCalendarEvent(id, partial);
+    return NextResponse.json(updated);
   } catch (err) {
     return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 });
   }
@@ -34,11 +36,10 @@ export async function DELETE(
   try {
     const { id } = await params;
     const events = await getCalendarEvents();
-    const filtered = events.filter((e) => e.id !== id);
-    if (filtered.length === events.length) {
+    if (!events.find((e) => e.id === id)) {
       return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 });
     }
-    await saveCalendarEvents(filtered);
+    await deleteCalendarEvent(id);
     return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ error: 'Erro ao excluir' }, { status: 500 });

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getNews, saveNews, generateId } from '@/lib/data';
+import { getNews, insertNews } from '@/lib/data';
 import type { News } from '@/types';
 
 export async function GET() {
@@ -20,19 +20,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Título e descrição são obrigatórios' }, { status: 400 });
     }
 
-    const news = await getNews();
-    const newItem: News = {
-      id: generateId(),
+    const newItem = await insertNews({
       title: String(title).trim(),
       description: String(description).trim(),
       image: image ? String(image).trim() : undefined,
       instagramUrl: instagramUrl ? String(instagramUrl).trim() : undefined,
       images: Array.isArray(images) ? images : image ? [image] : [],
       createdAt: new Date().toISOString(),
-    };
-
-    news.push(newItem);
-    await saveNews(news);
+    });
 
     return NextResponse.json(newItem);
   } catch (err) {

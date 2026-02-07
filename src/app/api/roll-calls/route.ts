@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server';
-import { getRollCalls, saveRollCalls, generateId } from '@/lib/data';
-import type { RollCall } from '@/types';
+import { getRollCalls, getRollCallByDate, upsertRollCall } from '@/lib/data';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date');
-    const rollCalls = await getRollCalls();
     if (date) {
-      const one = rollCalls.find((r) => r.date === date);
+      const one = await getRollCallByDate(date);
       return NextResponse.json(one ?? null);
     }
+    const rollCalls = await getRollCalls();
     return NextResponse.json(rollCalls);
   } catch (err) {
     console.error(err);
@@ -25,24 +24,7 @@ export async function POST(request: Request) {
     if (!date || typeof date !== 'string') {
       return NextResponse.json({ error: 'Data é obrigatória' }, { status: 400 });
     }
-    const rollCalls = await getRollCalls();
-    const existing = rollCalls.find((r) => r.date === date);
-    const payload: RollCall = existing
-      ? { ...existing, attendance: typeof attendance === 'object' ? attendance : existing.attendance }
-      : {
-          id: generateId(),
-          date,
-          attendance: typeof attendance === 'object' ? attendance : {},
-          createdAt: new Date().toISOString(),
-          authorId: 'system',
-        };
-    if (existing) {
-      const idx = rollCalls.findIndex((r) => r.date === date);
-      rollCalls[idx] = payload;
-    } else {
-      rollCalls.push(payload);
-    }
-    await saveRollCalls(rollCalls);
+    const payload = await upsertRollCall(date, typeof attendance === 'object' ? attendance : {});
     return NextResponse.json(payload);
   } catch (err) {
     console.error(err);

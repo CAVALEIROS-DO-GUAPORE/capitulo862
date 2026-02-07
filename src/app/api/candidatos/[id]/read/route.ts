@@ -1,17 +1,5 @@
 import { NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-
-const DATA_FILE = path.join(process.cwd(), 'data', 'candidatos.json');
-
-async function getCandidates() {
-  try {
-    const data = await fs.readFile(DATA_FILE, 'utf-8');
-    return JSON.parse(data || '[]');
-  } catch {
-    return [];
-  }
-}
+import { getCandidates, updateCandidate } from '@/lib/data';
 
 export async function PATCH(
   request: Request,
@@ -27,18 +15,13 @@ export async function PATCH(
     }
 
     const candidates = await getCandidates();
-    const index = candidates.findIndex((c: { id: string }) => c.id === id);
-    if (index === -1) {
+    const candidate = candidates.find((c) => c.id === id);
+    if (!candidate) {
       return NextResponse.json({ error: 'Candidato não encontrado' }, { status: 404 });
     }
 
-    if (reader === 'mc') {
-      candidates[index].readByMc = true;
-    } else {
-      candidates[index].readByFirstCounselor = true;
-    }
-
-    await fs.writeFile(DATA_FILE, JSON.stringify(candidates, null, 2), 'utf-8');
+    const partial = reader === 'mc' ? { readByMc: true } : { readByFirstCounselor: true };
+    await updateCandidate(id, partial);
 
     return NextResponse.json({ success: true });
   } catch (err) {

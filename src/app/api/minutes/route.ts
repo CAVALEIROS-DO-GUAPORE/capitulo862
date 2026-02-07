@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getMinutes, saveMinutes, generateId, getNextAtaNumber } from '@/lib/data';
+import { getMinutes, insertMinute, getNextAtaNumber } from '@/lib/data';
 import type { InternalMinutes, AtaType } from '@/types';
 
 export async function GET() {
@@ -39,14 +39,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Título e conteúdo são obrigatórios' }, { status: 400 });
     }
 
-    const minutes = await getMinutes();
     const ataDate = date ? new Date(date) : new Date();
     const year = ataDate.getFullYear();
-    const ataNumber = status === 'publicada' ? getNextAtaNumber(minutes, year) : undefined;
+    const ataNumber = status === 'publicada' ? await getNextAtaNumber(year) : undefined;
     const ataYear = status === 'publicada' ? year : undefined;
 
-    const newItem: InternalMinutes = {
-      id: generateId(),
+    const newItem = await insertMinute({
       title: String(title).trim(),
       content: String(content).trim(),
       createdAt: new Date().toISOString(),
@@ -69,10 +67,7 @@ export async function POST(request: Request) {
       tiosPresentes: Array.isArray(tiosPresentes) ? tiosPresentes : [],
       trabalhosTexto: String(trabalhosTexto || ''),
       escrivaoName: escrivaoName ? String(escrivaoName) : undefined,
-    };
-
-    minutes.push(newItem);
-    await saveMinutes(minutes);
+    });
 
     return NextResponse.json(newItem);
   } catch (err) {

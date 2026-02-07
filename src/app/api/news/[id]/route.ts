@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getNews, saveNews } from '@/lib/data';
+import { getNews, updateNews, deleteNews } from '@/lib/data';
 import type { News } from '@/types';
 
 export async function PATCH(
@@ -12,17 +12,19 @@ export async function PATCH(
     const { title, description, images, image, instagramUrl } = body;
 
     const news = await getNews();
-    const index = news.findIndex((n) => n.id === id);
-    if (index === -1) return NextResponse.json({ error: 'Notícia não encontrada' }, { status: 404 });
+    if (!news.find((n) => n.id === id)) {
+      return NextResponse.json({ error: 'Notícia não encontrada' }, { status: 404 });
+    }
 
-    if (title !== undefined) news[index].title = String(title).trim();
-    if (description !== undefined) news[index].description = String(description).trim();
-    if (images !== undefined) news[index].images = Array.isArray(images) ? images : [];
-    if (image !== undefined) news[index].image = image ? String(image).trim() : undefined;
-    if (instagramUrl !== undefined) news[index].instagramUrl = instagramUrl ? String(instagramUrl).trim() : undefined;
+    const partial: Partial<News> = {};
+    if (title !== undefined) partial.title = String(title).trim();
+    if (description !== undefined) partial.description = String(description).trim();
+    if (images !== undefined) partial.images = Array.isArray(images) ? images : [];
+    if (image !== undefined) partial.image = image ? String(image).trim() : undefined;
+    if (instagramUrl !== undefined) partial.instagramUrl = instagramUrl ? String(instagramUrl).trim() : undefined;
 
-    await saveNews(news);
-    return NextResponse.json(news[index]);
+    const updated = await updateNews(id, partial);
+    return NextResponse.json(updated);
   } catch (err) {
     return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 });
   }
@@ -35,11 +37,10 @@ export async function DELETE(
   try {
     const { id } = await params;
     const news = await getNews();
-    const filtered = news.filter((n) => n.id !== id);
-    if (filtered.length === news.length) {
+    if (!news.find((n) => n.id === id)) {
       return NextResponse.json({ error: 'Notícia não encontrada' }, { status: 404 });
     }
-    await saveNews(filtered);
+    await deleteNews(id);
     return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ error: 'Erro ao excluir' }, { status: 500 });

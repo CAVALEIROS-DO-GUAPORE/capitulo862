@@ -33,10 +33,20 @@ export default function PainelChamadaPage() {
   }, []);
 
   const loadMembers = useCallback(() => {
+    setLoading(true);
     fetch('/api/members')
-      .then((r) => r.json())
-      .then((data) => setMembers(Array.isArray(data) ? data : []))
-      .catch(() => setMembers([]))
+      .then((r) => {
+        if (!r.ok) return r.json().then((d) => { throw new Error(d?.error || 'Erro ao carregar membros'); });
+        return r.json();
+      })
+      .then((data) => {
+        setError('');
+        setMembers(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Erro ao carregar membros');
+        setMembers([]);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -157,6 +167,18 @@ export default function PainelChamadaPage() {
 
       {loading ? (
         <p className="text-slate-500">Carregando membros...</p>
+      ) : members.length === 0 ? (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 text-center">
+          <p className="text-amber-800 mb-2">Nenhum membro encontrado.</p>
+          <p className="text-amber-700 text-sm mb-4">Cadastre membros em &quot;Membros&quot; no painel ou tente novamente.</p>
+          <button
+            type="button"
+            onClick={() => { setError(''); loadMembers(); }}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm"
+          >
+            Tentar novamente
+          </button>
+        </div>
       ) : !rollCallDate && canEdit ? (
         <div className="bg-slate-50 rounded-lg border border-slate-200 p-8 text-center text-slate-500">
           Selecione a data da chamada para marcar presença.

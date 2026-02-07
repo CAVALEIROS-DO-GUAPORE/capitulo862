@@ -1,29 +1,5 @@
 import { NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-
-const DATA_FILE = path.join(process.cwd(), 'data', 'candidatos.json');
-
-async function ensureDataFile() {
-  const dir = path.dirname(DATA_FILE);
-  await fs.mkdir(dir, { recursive: true });
-  try {
-    await fs.access(DATA_FILE);
-  } catch {
-    await fs.writeFile(DATA_FILE, JSON.stringify([]), 'utf-8');
-  }
-}
-
-async function getCandidates() {
-  await ensureDataFile();
-  const data = await fs.readFile(DATA_FILE, 'utf-8');
-  return JSON.parse(data || '[]');
-}
-
-async function saveCandidates(candidates: unknown[]) {
-  await ensureDataFile();
-  await fs.writeFile(DATA_FILE, JSON.stringify(candidates, null, 2), 'utf-8');
-}
+import { getCandidates, insertCandidate } from '@/lib/data';
 
 export async function GET() {
   try {
@@ -59,9 +35,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const candidates = await getCandidates();
-    const newCandidate = {
-      id: `cand-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    const newCandidate = await insertCandidate({
       fullName: String(fullName).trim(),
       motherName: String(motherName).trim(),
       fatherName: fatherName ? String(fatherName).trim() : undefined,
@@ -76,10 +50,7 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString(),
       readByMc: false,
       readByFirstCounselor: false,
-    };
-
-    candidates.push(newCandidate);
-    await saveCandidates(candidates);
+    });
 
     return NextResponse.json({ success: true, id: newCandidate.id });
   } catch (err) {

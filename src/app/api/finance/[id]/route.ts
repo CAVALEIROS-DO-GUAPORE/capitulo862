@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getFinanceEntries, saveFinanceEntries } from '@/lib/data';
+import { getFinanceEntries, updateFinanceEntry, deleteFinanceEntry } from '@/lib/data';
 import type { FinanceEntry } from '@/types';
 
 export async function PATCH(
@@ -12,19 +12,22 @@ export async function PATCH(
     const { type, amount, description, date } = body;
 
     const entries = await getFinanceEntries();
-    const index = entries.findIndex((e) => e.id === id);
-    if (index === -1) return NextResponse.json({ error: 'Movimentação não encontrada' }, { status: 404 });
+    const existing = entries.find((e) => e.id === id);
+    if (!existing) {
+      return NextResponse.json({ error: 'Movimentação não encontrada' }, { status: 404 });
+    }
 
-    if (type !== undefined) entries[index].type = type === 'saida' ? 'saida' : 'entrada';
+    const partial: Partial<FinanceEntry> = {};
+    if (type !== undefined) partial.type = type === 'saida' ? 'saida' : 'entrada';
     if (amount !== undefined) {
       const value = parseFloat(amount);
-      entries[index].amount = entries[index].type === 'saida' ? -Math.abs(value) : Math.abs(value);
+      partial.amount = (partial.type ?? existing.type) === 'saida' ? -Math.abs(value) : Math.abs(value);
     }
-    if (description !== undefined) entries[index].description = String(description).trim();
-    if (date !== undefined) entries[index].date = String(date);
+    if (description !== undefined) partial.description = String(description).trim();
+    if (date !== undefined) partial.date = String(date);
 
-    await saveFinanceEntries(entries);
-    return NextResponse.json(entries[index]);
+    const updated = await updateFinanceEntry(id, partial);
+    return NextResponse.json(updated);
   } catch (err) {
     return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 });
   }
@@ -37,11 +40,10 @@ export async function DELETE(
   try {
     const { id } = await params;
     const entries = await getFinanceEntries();
-    const filtered = entries.filter((e) => e.id !== id);
-    if (filtered.length === entries.length) {
+    if (!entries.find((e) => e.id === id)) {
       return NextResponse.json({ error: 'Movimentação não encontrada' }, { status: 404 });
     }
-    await saveFinanceEntries(filtered);
+    await deleteFinanceEntry(id);
     return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ error: 'Erro ao excluir' }, { status: 500 });

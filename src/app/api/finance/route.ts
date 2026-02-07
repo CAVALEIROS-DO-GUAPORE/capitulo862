@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getFinanceEntries, saveFinanceEntries, generateId } from '@/lib/data';
+import { getFinanceEntries, insertFinanceEntry } from '@/lib/data';
 import type { FinanceEntry } from '@/types';
 
 export async function GET() {
@@ -25,18 +25,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Valor inválido' }, { status: 400 });
     }
 
-    const entries = await getFinanceEntries();
-    const newEntry: FinanceEntry = {
-      id: generateId(),
+    const newEntry = await insertFinanceEntry({
       type: type === 'saida' ? 'saida' : 'entrada',
       amount: type === 'saida' ? -Math.abs(value) : Math.abs(value),
       description: description ? String(description).trim() : '',
-      date: date ? String(date) : new Date().toISOString().slice(0, 10),
+      date: date ? String(date).slice(0, 10) : new Date().toISOString().slice(0, 10),
       createdAt: new Date().toISOString(),
-    };
-
-    entries.push(newEntry);
-    await saveFinanceEntries(entries);
+    });
 
     return NextResponse.json(newEntry);
   } catch (err) {

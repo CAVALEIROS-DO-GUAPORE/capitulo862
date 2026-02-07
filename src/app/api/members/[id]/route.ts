@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getMembers, saveMembers } from '@/lib/data';
+import { getMembers, updateMember, deleteMember } from '@/lib/data';
 import type { Member } from '@/types';
 
 export async function GET(
@@ -27,18 +27,20 @@ export async function PATCH(
     const { name, role, category, order, photo, phone } = body;
 
     const members = await getMembers();
-    const index = members.findIndex((m) => m.id === id);
-    if (index === -1) return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
+    if (!members.find((m) => m.id === id)) {
+      return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
+    }
 
-    if (name !== undefined) members[index].name = String(name).trim();
-    if (role !== undefined) members[index].role = String(role).trim();
-    if (category !== undefined) members[index].category = category as Member['category'];
-    if (order !== undefined) members[index].order = Number(order);
-    if (photo !== undefined) members[index].photo = photo || undefined;
-    if (phone !== undefined) members[index].phone = phone ? String(phone).trim() : undefined;
+    const partial: Partial<Member> = {};
+    if (name !== undefined) partial.name = String(name).trim();
+    if (role !== undefined) partial.role = String(role).trim();
+    if (category !== undefined) partial.category = category as Member['category'];
+    if (order !== undefined) partial.order = Number(order);
+    if (photo !== undefined) partial.photo = photo || undefined;
+    if (phone !== undefined) partial.phone = phone ? String(phone).trim() : undefined;
 
-    await saveMembers(members);
-    return NextResponse.json(members[index]);
+    const updated = await updateMember(id, partial);
+    return NextResponse.json(updated);
   } catch (err) {
     return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 });
   }
@@ -51,11 +53,10 @@ export async function DELETE(
   try {
     const { id } = await params;
     const members = await getMembers();
-    const filtered = members.filter((m) => m.id !== id);
-    if (filtered.length === members.length) {
+    if (!members.find((m) => m.id === id)) {
       return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
     }
-    await saveMembers(filtered);
+    await deleteMember(id);
     return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ error: 'Erro ao excluir' }, { status: 500 });
