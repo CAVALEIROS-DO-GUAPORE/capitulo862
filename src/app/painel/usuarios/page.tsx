@@ -47,9 +47,9 @@ export default function PainelUsuariosPage() {
   const [usersLoading, setUsersLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const canInvite = user?.role && ['admin', 'mestre_conselheiro', 'primeiro_conselheiro'].includes(user.role);
-  const canResetPassword = canInvite;
-  const canManageUsers = canInvite;
+  const canCreateUser = user?.role && ['admin', 'mestre_conselheiro', 'primeiro_conselheiro'].includes(user.role);
+  const canResetPassword = canCreateUser;
+  const canManageUsers = canCreateUser;
 
   useEffect(() => {
     const stored = sessionStorage.getItem('dm_user');
@@ -138,8 +138,8 @@ export default function PainelUsuariosPage() {
         body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined, role }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao enviar convite');
-      setSuccess('Convite enviado! O usuário receberá um link por email para criar a senha.');
+      if (!res.ok) throw new Error(data.error || 'Erro ao cadastrar usuário');
+      setSuccess(data.message || 'Usuário cadastrado. Senha padrão: capitulo862. O usuário pode trocá-la no perfil.');
       setEmail('');
       setName('');
       setRole('membro');
@@ -174,7 +174,7 @@ export default function PainelUsuariosPage() {
     }
   }
 
-  if (!user || !canInvite) {
+  if (!user || !canCreateUser) {
     return (
       <div>
         <p className="text-slate-600">Você não tem permissão para cadastrar usuários.</p>
@@ -245,7 +245,7 @@ export default function PainelUsuariosPage() {
       <div>
         <h1 className="text-2xl font-bold text-blue-800 mb-6">Cadastrar usuário</h1>
         <p className="text-slate-600 mb-6">
-          Informe o email do novo usuário. Ele receberá um link por email para criar a senha e acessar o painel.
+          Admin, MC e 1º Conselheiro podem criar usuários. A senha inicial será sempre <strong>capitulo862</strong>. O usuário pode trocá-la em Perfil após o login.
         </p>
 
         <form onSubmit={handleSubmit} className="max-w-md space-y-4">
@@ -289,7 +289,7 @@ export default function PainelUsuariosPage() {
           disabled={loading}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-lg"
         >
-          {loading ? 'Enviando...' : 'Enviar convite'}
+          {loading ? 'Cadastrando...' : 'Cadastrar usuário'}
         </button>
       </form>
       </div>
