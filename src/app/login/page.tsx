@@ -39,7 +39,7 @@ export default function LoginPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('email, name, role')
+        .select('email, name, role, avatar_url')
         .eq('id', authData.user.id)
         .single();
 
@@ -53,6 +53,7 @@ export default function LoginPage() {
         email: profile.email || authData.user.email,
         role: profile.role || 'membro',
         name: profile.name || 'Membro',
+        avatarUrl: profile.avatar_url || null,
       }));
 
       router.push('/painel');

@@ -1,8 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Adicione o hostname do seu Supabase Storage quando configurar:
-  // images: { remotePatterns: [{ protocol: 'https', hostname: 'xxx.supabase.co', pathname: '/storage/**' }] },
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'jaiirortxukpaifwozgz.supabase.co', pathname: '/storage/v1/object/public/**' },
+    ],
+  },
 };
 
 export default nextConfig;

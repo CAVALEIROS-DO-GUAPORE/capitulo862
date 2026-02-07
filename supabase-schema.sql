@@ -6,10 +6,18 @@ CREATE TABLE IF NOT EXISTS profiles (
   id UUID REFERENCES auth.users(id) PRIMARY KEY,
   email TEXT,
   name TEXT,
+  phone TEXT,
+  birth_date DATE,
+  avatar_url TEXT,
   role TEXT NOT NULL DEFAULT 'membro',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Adicionar colunas se a tabela já existir (executar manualmente se necessário):
+-- ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT;
+-- ALTER TABLE profiles ADD COLUMN IF NOT EXISTS birth_date DATE;
+-- ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 
 -- Tabela de membros (exibida no site)
 CREATE TABLE IF NOT EXISTS members (
@@ -28,6 +36,8 @@ CREATE TABLE IF NOT EXISTS news (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   title TEXT NOT NULL,
   description TEXT NOT NULL,
+  image TEXT,
+  instagram_url TEXT,
   images TEXT[] DEFAULT '{}',
   author_id UUID REFERENCES auth.users(id),
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -95,5 +105,33 @@ ALTER TABLE finance_entries ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "members public read" ON members FOR SELECT USING (true);
 CREATE POLICY "news public read" ON news FOR SELECT USING (true);
 
--- Política: usuários leem seu próprio perfil (necessário para login)
+-- Política: usuários leem e atualizam seu próprio perfil
 CREATE POLICY "Users can read own profile" ON profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+
+-- Storage: bucket avatars (criar no Supabase Dashboard > Storage)
+-- Políticas no bucket avatars:
+--   - SELECT: público (para exibir fotos)
+--   - INSERT: auth.uid() IS NOT NULL
+--   - DELETE: auth.uid() = (owner do arquivo, via RLS)
+
+-- Trigger: cria perfil automaticamente quando usuário aceita convite
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, name, role)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'name', ''),
+    COALESCE(NEW.raw_user_meta_data->>'role', 'membro')
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();

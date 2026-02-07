@@ -34,6 +34,8 @@ export interface News {
   id: string;
   title: string;
   description: string;
+  image?: string;
+  instagramUrl?: string;
   images: string[];
   createdAt: string;
   authorId?: string;

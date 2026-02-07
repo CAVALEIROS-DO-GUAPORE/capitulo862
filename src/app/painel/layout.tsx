@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -9,6 +10,7 @@ interface SessionUser {
   email: string;
   role: string;
   name: string;
+  avatarUrl?: string | null;
 }
 
 export default function PainelLayout({
@@ -42,7 +44,7 @@ export default function PainelLayout({
           } catch {
             const { data: profile } = await supabase
               .from('profiles')
-              .select('email, name, role')
+              .select('email, name, role, avatar_url')
               .eq('id', session.user.id)
               .single();
 
@@ -51,6 +53,7 @@ export default function PainelLayout({
                 email: profile.email || session.user.email || '',
                 role: profile.role || 'membro',
                 name: profile.name || 'Membro',
+                avatarUrl: profile.avatar_url || null,
               };
               sessionStorage.setItem('dm_user', JSON.stringify(userData));
               setUser(userData);
@@ -61,7 +64,7 @@ export default function PainelLayout({
         } else {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('email, name, role')
+            .select('email, name, role, avatar_url')
             .eq('id', session.user.id)
             .single();
 
@@ -70,6 +73,7 @@ export default function PainelLayout({
               email: profile.email || session.user.email || '',
               role: profile.role || 'membro',
               name: profile.name || 'Membro',
+              avatarUrl: profile.avatar_url || null,
             };
             sessionStorage.setItem('dm_user', JSON.stringify(userData));
             setUser(userData);
@@ -99,6 +103,7 @@ export default function PainelLayout({
   const links = [
     { href: '/painel', label: 'Início' },
     ...(user ? (canViewCandidatos(user.role) ? [{ href: '/painel/candidatos', label: 'Candidaturas' }] : []) : []),
+    ...(user ? (canViewCandidatos(user.role) ? [{ href: '/painel/usuarios', label: 'Usuários' }] : []) : []),
     { href: '/painel/membros', label: 'Membros' },
     { href: '/painel/noticias', label: 'Notícias' },
     { href: '/painel/calendario', label: 'Calendário' },
@@ -120,9 +125,27 @@ export default function PainelLayout({
         <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-14">
           <div />
           <div className="flex items-center gap-4">
-            <span className="text-slate-600 text-sm hidden sm:inline">
-              {user.name}
-            </span>
+            <Link
+              href="/painel/perfil"
+              className="flex items-center gap-2 text-slate-600 hover:text-blue-600 text-sm"
+            >
+              {user.avatarUrl ? (
+                <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0">
+                  <Image
+                    src={user.avatarUrl}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    unoptimized={user.avatarUrl.includes('supabase')}
+                  />
+                </div>
+              ) : (
+                <span className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-sm font-medium">
+                  {user.name?.charAt(0)?.toUpperCase() || '?'}
+                </span>
+              )}
+              <span className="hidden sm:inline">{user.name}</span>
+            </Link>
             <button
               onClick={handleLogout}
               className="text-slate-600 hover:text-blue-600 text-sm"

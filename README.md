@@ -48,6 +48,7 @@ Acesse [http://localhost:3000](http://localhost:3000).
 3. Copie `.env.local.example` para `.env.local` e preencha:
    - `NEXT_PUBLIC_SUPABASE_URL` - URL do projeto
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Chave anônima (Settings > API)
+   - `SUPABASE_SERVICE_ROLE_KEY` - Chave service_role (para convite de usuários)
 
 ## Criar usuários (login)
 

@@ -9,7 +9,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { title, description, images } = body;
+    const { title, description, images, image, instagramUrl } = body;
 
     const news = await getNews();
     const index = news.findIndex((n) => n.id === id);
@@ -18,6 +18,8 @@ export async function PATCH(
     if (title !== undefined) news[index].title = String(title).trim();
     if (description !== undefined) news[index].description = String(description).trim();
     if (images !== undefined) news[index].images = Array.isArray(images) ? images : [];
+    if (image !== undefined) news[index].image = image ? String(image).trim() : undefined;
+    if (instagramUrl !== undefined) news[index].instagramUrl = instagramUrl ? String(instagramUrl).trim() : undefined;
 
     await saveNews(news);
     return NextResponse.json(news[index]);

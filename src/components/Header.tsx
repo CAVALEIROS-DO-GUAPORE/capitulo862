@@ -18,8 +18,9 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
       <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-16">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-3">
           <Image src="/logocapitulo.png" alt="Cavaleiros do Guaporé nº 862" width={180} height={48} priority className="h-12 w-auto" />
+          <span className="text-lg font-bold text-blue-800 hidden sm:inline">Cap. Cavaleiros do Guaporé Nº 862</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">

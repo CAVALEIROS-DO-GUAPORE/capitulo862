@@ -14,7 +14,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, description, images } = body;
+    const { title, description, images, image, instagramUrl } = body;
 
     if (!title || !description) {
       return NextResponse.json({ error: 'Título e descrição são obrigatórios' }, { status: 400 });
@@ -25,7 +25,9 @@ export async function POST(request: Request) {
       id: generateId(),
       title: String(title).trim(),
       description: String(description).trim(),
-      images: Array.isArray(images) ? images : [],
+      image: image ? String(image).trim() : undefined,
+      instagramUrl: instagramUrl ? String(instagramUrl).trim() : undefined,
+      images: Array.isArray(images) ? images : image ? [image] : [],
       createdAt: new Date().toISOString(),
     };
 
