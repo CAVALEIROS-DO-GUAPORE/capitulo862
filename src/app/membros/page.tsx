@@ -31,27 +31,43 @@ export default function MembrosPage() {
       .catch(() => setMembers([]));
   }, []);
 
-  const demolaysAll = members.filter((m) => m.category === 'demolays');
+  function membersInCategory(cat: SectionId) {
+    return members.filter(
+      (m) =>
+        m.category === cat ||
+        m.additionalRoles?.some((r) => r.category === cat)
+    );
+  }
+
+  function roleInSection(m: Member, cat: SectionId): string {
+    return m.category === cat ? m.role : (m.additionalRoles?.find((r) => r.category === cat)?.role ?? '');
+  }
+
+  function withSectionRole(members: Member[], cat: SectionId): Member[] {
+    return members.map((m) => ({ ...m, role: roleInSection(m, cat) }));
+  }
+
+  const demolaysAll = membersInCategory('demolays');
   const demolaysDirectors = demolaysAll.filter((m) =>
-    DEMOLAY_DIRECTOR_ROLES.includes(m.role)
+    DEMOLAY_DIRECTOR_ROLES.includes(roleInSection(m, 'demolays'))
   );
   const demolaysSecretaries = demolaysAll.filter((m) =>
-    DEMOLAY_SECRETARY_ROLES.includes(m.role)
+    DEMOLAY_SECRETARY_ROLES.includes(roleInSection(m, 'demolays'))
   );
 
-  const seniores = members.filter((m) => m.category === 'seniores');
+  const seniores = membersInCategory('seniores');
   const senioresDirectors = seniores.filter((m) =>
-    SENIOR_DIRECTOR_ROLES.includes(m.role)
+    SENIOR_DIRECTOR_ROLES.includes(roleInSection(m, 'seniores'))
   );
 
-  const consultores = members.filter((m) => m.category === 'consultores');
+  const consultores = membersInCategory('consultores');
   const consultoresDirectors = consultores.filter((m) =>
-    CONSULTIVO_DIRECTOR_ROLES.includes(m.role)
+    CONSULTIVO_DIRECTOR_ROLES.includes(roleInSection(m, 'consultores'))
   );
 
-  const escudeiros = members.filter((m) => m.category === 'escudeiros');
+  const escudeiros = membersInCategory('escudeiros');
   const escudeirosDirectors = escudeiros.filter((m) =>
-    ESCUDEIRO_DIRECTOR_ROLES.includes(m.role)
+    ESCUDEIRO_DIRECTOR_ROLES.includes(roleInSection(m, 'escudeiros'))
   );
 
   return (
@@ -84,9 +100,9 @@ export default function MembrosPage() {
           <MemberSection
             title={memberDescriptions.demolays.title}
             description={memberDescriptions.demolays.description}
-            members={demolaysAll}
-            directors={demolaysDirectors}
-            secretaries={demolaysSecretaries}
+            members={withSectionRole(demolaysAll, 'demolays')}
+            directors={withSectionRole(demolaysDirectors, 'demolays')}
+            secretaries={withSectionRole(demolaysSecretaries, 'demolays')}
             otherLabel="Demais Membros"
           />
         )}
@@ -94,8 +110,8 @@ export default function MembrosPage() {
           <MemberSection
             title={memberDescriptions.seniores.title}
             description={memberDescriptions.seniores.description}
-            members={seniores}
-            directors={senioresDirectors}
+            members={withSectionRole(seniores, 'seniores')}
+            directors={withSectionRole(senioresDirectors, 'seniores')}
             otherLabel="Membros"
           />
         )}
@@ -103,8 +119,8 @@ export default function MembrosPage() {
           <MemberSection
             title={memberDescriptions.consultores.title}
             description={memberDescriptions.consultores.description}
-            members={consultores}
-            directors={consultoresDirectors}
+            members={withSectionRole(consultores, 'consultores')}
+            directors={withSectionRole(consultoresDirectors, 'consultores')}
             otherLabel="Consultores"
           />
         )}
@@ -112,8 +128,8 @@ export default function MembrosPage() {
           <MemberSection
             title={memberDescriptions.escudeiros.title}
             description={memberDescriptions.escudeiros.description}
-            members={escudeiros}
-            directors={escudeirosDirectors}
+            members={withSectionRole(escudeiros, 'escudeiros')}
+            directors={withSectionRole(escudeirosDirectors, 'escudeiros')}
             otherLabel="Escudeiros"
           />
         )}

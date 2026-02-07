@@ -143,10 +143,15 @@ export default function PainelUsuariosPage() {
 
   async function getAuthHeaders(): Promise<HeadersInit> {
     const supabase = createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    let { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      await supabase.auth.refreshSession();
+      const r = await supabase.auth.getSession();
+      session = r.data.session;
+    }
     const token = session?.access_token;
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
     return headers;
   }
 
@@ -157,9 +162,14 @@ export default function PainelUsuariosPage() {
     setSuccess('');
     try {
       const headers = await getAuthHeaders();
+      if (!(headers as Record<string, string>)['Authorization']) {
+        setError('Sessão expirada. Faça login novamente para cadastrar usuários.');
+        return;
+      }
       const res = await fetch('/api/auth/invite', {
         method: 'POST',
         headers,
+        credentials: 'include',
         body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined, role }),
       });
       const data = await res.json();
