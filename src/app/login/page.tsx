@@ -64,6 +64,7 @@ export default function LoginPage() {
       if (!flagError && flagRow?.must_change_password === true) mustChangePassword = true;
 
       sessionStorage.setItem('dm_user', JSON.stringify({
+        id: authData.user.id,
         email: profile.email || authData.user.email,
         role: profile.role || 'membro',
         name: profile.name || 'Membro',

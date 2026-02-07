@@ -81,6 +81,16 @@ export default function PainelUsuariosPage() {
     if (canManageUsers) loadUsers();
   }, [canManageUsers]);
 
+  useEffect(() => {
+    if (!canManageUsers) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel('profiles-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => loadUsers())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [canManageUsers]);
+
   async function handleToggleActive(u: UserItem) {
     if (!confirm(u.active ? 'Inativar este usuário? Ele não poderá mais acessar o painel.' : 'Reativar este usuário?')) return;
     setActionLoading(u.id);

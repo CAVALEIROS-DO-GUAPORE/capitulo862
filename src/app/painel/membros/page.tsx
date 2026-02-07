@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import type { Member, MemberCategory } from '@/types';
 
 const CATEGORIES = [
@@ -36,17 +37,26 @@ export default function PainelMembrosPage() {
     }
   }, []);
 
-  function loadMembers() {
+  const loadMembers = useCallback(function loadMembers() {
     fetch('/api/members')
       .then((r) => r.json())
       .then((data) => setMembers(Array.isArray(data) ? data : []))
       .catch(() => setMembers([]))
       .finally(() => setLoading(false));
-  }
+  }, []);
 
   useEffect(() => {
     loadMembers();
-  }, []);
+  }, [loadMembers]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel('members-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, () => loadMembers())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [loadMembers]);
 
   function openAdd() {
     setEditing(null);

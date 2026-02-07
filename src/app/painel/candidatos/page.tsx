@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 
 interface Candidate {
@@ -38,15 +39,26 @@ export default function PainelCandidatosPage() {
     }
   }, []);
 
-  useEffect(() => {
+  const loadCandidates = useCallback(function loadCandidates() {
     fetch('/api/candidatos')
       .then((res) => res.json())
-      .then((data) => {
-        setCandidates(Array.isArray(data) ? data : []);
-      })
+      .then((data) => setCandidates(Array.isArray(data) ? data : []))
       .catch(() => setCandidates([]))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadCandidates();
+  }, [loadCandidates]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel('candidatos-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'membership_candidates' }, () => loadCandidates())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [loadCandidates]);
 
   async function handleDelete(id: string) {
     if (!confirm('Excluir esta candidatura?')) return;

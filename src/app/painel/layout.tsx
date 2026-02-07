@@ -7,6 +7,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
 interface SessionUser {
+  id?: string;
   email: string;
   role: string;
   name: string;
@@ -50,6 +51,7 @@ export default function PainelLayout({
 
             if (profile) {
               const userData = {
+                id: session.user.id,
                 email: profile.email || session.user.email || '',
                 role: profile.role || 'membro',
                 name: profile.name || 'Membro',
@@ -70,6 +72,7 @@ export default function PainelLayout({
 
           if (profile) {
             const userData = {
+              id: session.user.id,
               email: profile.email || session.user.email || '',
               role: profile.role || 'membro',
               name: profile.name || 'Membro',
@@ -88,6 +91,50 @@ export default function PainelLayout({
 
     checkAuth();
   }, [router]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    function onUserUpdated() {
+      const stored = sessionStorage.getItem('dm_user');
+      if (stored) {
+        try {
+          setUser(JSON.parse(stored));
+        } catch {}
+      }
+    }
+    window.addEventListener('dm_user_updated', onUserUpdated);
+    return () => window.removeEventListener('dm_user_updated', onUserUpdated);
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel('profile-realtime')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+        (payload) => {
+          const newRow = payload.new as { email?: string; name?: string; role?: string; avatar_url?: string | null };
+          setUser((prev) => {
+            if (!prev) return prev;
+            const updated = {
+              ...prev,
+              email: newRow.email ?? prev.email,
+              name: newRow.name ?? prev.name,
+              role: newRow.role ?? prev.role,
+              avatarUrl: newRow.avatar_url ?? prev.avatarUrl,
+            };
+            sessionStorage.setItem('dm_user', JSON.stringify(updated));
+            return updated;
+          });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   async function handleLogout() {
     const supabase = createClient();

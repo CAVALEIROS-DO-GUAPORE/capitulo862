@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import type { CalendarEvent } from '@/types';
 
 const EVENT_TYPES = [
@@ -31,17 +32,26 @@ export default function PainelCalendarioPage() {
     }
   }, []);
 
-  function loadEvents() {
+  const loadEvents = useCallback(function loadEvents() {
     fetch('/api/calendar')
       .then((r) => r.json())
       .then((data) => setEvents(Array.isArray(data) ? data : []))
       .catch(() => setEvents([]))
       .finally(() => setLoading(false));
-  }
+  }, []);
 
   useEffect(() => {
     loadEvents();
-  }, []);
+  }, [loadEvents]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel('calendar-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_events' }, () => loadEvents())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [loadEvents]);
 
   function openAdd() {
     setEditing(null);

@@ -62,6 +62,20 @@ export default function PerfilPage() {
   }, []);
 
   useEffect(() => {
+    if (!profile?.id) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel('perfil-realtime')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${profile.id}` },
+        () => loadProfile()
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.id]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     const stored = sessionStorage.getItem('dm_user');
     if (stored) {
@@ -130,6 +144,15 @@ export default function PerfilPage() {
       if (!res.ok) throw new Error(data.error || 'Erro ao enviar foto');
       setProfile((p) => (p ? { ...p, avatarUrl: data.avatarUrl } : p));
       setSuccess('Foto atualizada com sucesso.');
+      const stored = sessionStorage.getItem('dm_user');
+      if (stored) {
+        try {
+          const u = JSON.parse(stored);
+          u.avatarUrl = data.avatarUrl;
+          sessionStorage.setItem('dm_user', JSON.stringify(u));
+          if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('dm_user_updated'));
+        } catch {}
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao enviar foto');
     } finally {

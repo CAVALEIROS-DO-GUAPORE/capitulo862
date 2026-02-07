@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createAuthenticatedClient } from '@/lib/supabase/api-auth';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function POST(request: NextRequest) {
   const supabase = createAuthenticatedClient(request);
@@ -23,13 +24,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'A senha deve ter pelo menos 6 caracteres' }, { status: 400 });
   }
 
-  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(user.id, { password: newPassword });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  await supabase
+  await admin
     .from('profiles')
     .update({ must_change_password: false })
     .eq('id', user.id);

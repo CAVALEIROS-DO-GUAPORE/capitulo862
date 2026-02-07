@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import type { InternalMinutes } from '@/types';
 
 export default function PainelAtasPage() {
@@ -25,17 +26,26 @@ export default function PainelAtasPage() {
     }
   }, []);
 
-  function loadMinutes() {
+  const loadMinutes = useCallback(function loadMinutes() {
     fetch('/api/minutes')
       .then((r) => r.json())
       .then((data) => setMinutes(Array.isArray(data) ? data : []))
       .catch(() => setMinutes([]))
       .finally(() => setLoading(false));
-  }
+  }, []);
 
   useEffect(() => {
     loadMinutes();
-  }, []);
+  }, [loadMinutes]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel('minutes-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'minutes' }, () => loadMinutes())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [loadMinutes]);
 
   function openAdd() {
     setEditing(null);

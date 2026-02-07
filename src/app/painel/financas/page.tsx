@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import type { FinanceEntry } from '@/types';
 
 export default function PainelFinancasPage() {
@@ -29,17 +30,26 @@ export default function PainelFinancasPage() {
     }
   }, []);
 
-  function loadEntries() {
+  const loadEntries = useCallback(function loadEntries() {
     fetch('/api/finance')
       .then((r) => r.json())
       .then((data) => setEntries(Array.isArray(data) ? data : []))
       .catch(() => setEntries([]))
       .finally(() => setLoading(false));
-  }
+  }, []);
 
   useEffect(() => {
     loadEntries();
-  }, []);
+  }, [loadEntries]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel('finance-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'finance_entries' }, () => loadEntries())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [loadEntries]);
 
   const balance = entries.reduce((sum, e) => sum + e.amount, 0);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import type { News } from '@/types';
@@ -27,17 +27,26 @@ export default function PainelNoticiasPage() {
     }
   }, []);
 
-  function loadNews() {
+  const loadNews = useCallback(function loadNews() {
     fetch('/api/news')
       .then((r) => r.json())
       .then((data) => setNews(Array.isArray(data) ? data : []))
       .catch(() => setNews([]))
       .finally(() => setLoading(false));
-  }
+  }, []);
 
   useEffect(() => {
     loadNews();
-  }, []);
+  }, [loadNews]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel('news-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'news' }, () => loadNews())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [loadNews]);
 
   function openAdd() {
     setEditing(null);
