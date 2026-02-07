@@ -1,19 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Crimson_Text, Lato } from "next/font/google";
 import "./globals.css";
 import LayoutWrapper from "@/components/LayoutWrapper";
-
-const crimson = Crimson_Text({
-  variable: "--font-crimson",
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
-});
-
-const lato = Lato({
-  variable: "--font-lato",
-  subsets: ["latin"],
-  weight: ["300", "400", "700"],
-});
 
 export const metadata: Metadata = {
   title: "Cavaleiros do Guaporé nº 862 | Ordem DeMolay",
@@ -42,7 +29,7 @@ export default function RootLayout({
       <head>
         <link rel="apple-touch-icon" href="/icon.svg" />
       </head>
-      <body className={`${crimson.variable} ${lato.variable} antialiased min-h-screen flex flex-col`}>
+      <body className="antialiased min-h-screen flex flex-col font-sans">
         <LayoutWrapper>{children}</LayoutWrapper>
       </body>
     </html>
