@@ -156,9 +156,10 @@ export default function PainelUsuariosPage() {
     setError('');
     setSuccess('');
     try {
+      const headers = await getAuthHeaders();
       const res = await fetch('/api/auth/invite', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined, role }),
       });
       const data = await res.json();
