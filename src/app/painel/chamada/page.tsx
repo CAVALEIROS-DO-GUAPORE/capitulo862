@@ -120,12 +120,18 @@ export default function PainelChamadaPage() {
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const byCategory = members.reduce((acc, m) => {
+  type ChamadaEntry = { memberId: string; name: string; role: string };
+  const entriesByCategory: Record<string, ChamadaEntry[]> = { demolays: [], seniores: [], consultores: [], escudeiros: [] };
+  members.forEach((m) => {
     const cat = m.category || 'demolays';
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(m);
-    return acc;
-  }, {} as Record<string, Member[]>);
+    if (!entriesByCategory[cat]) entriesByCategory[cat] = [];
+    entriesByCategory[cat].push({ memberId: m.id, name: m.name, role: m.role });
+    (m.additionalRoles || []).forEach((r) => {
+      if (!entriesByCategory[r.category]) entriesByCategory[r.category] = [];
+      entriesByCategory[r.category].push({ memberId: m.id, name: m.name, role: r.role });
+    });
+  });
+  const byCategory = entriesByCategory;
 
   return (
     <div>
@@ -197,19 +203,22 @@ export default function PainelChamadaPage() {
                     {CATEGORY_LABELS[cat] || cat}
                   </h2>
                   <ul className="divide-y divide-slate-100">
-                    {list.map((m) => (
+                    {list.map((entry, idx) => (
                       <li
-                        key={m.id}
+                        key={`${entry.memberId}-${cat}-${idx}`}
                         className="flex items-center justify-between gap-4 px-4 py-3"
                       >
-                        <span className="text-slate-800">{m.name}</span>
+                        <div>
+                          <span className="text-slate-800">{entry.name}</span>
+                          {entry.role && <span className="text-slate-500 text-sm ml-2">({entry.role})</span>}
+                        </div>
                         {canEdit ? (
                           <div className="flex gap-2">
                             <button
                               type="button"
-                              onClick={() => setPresence(m.id, true)}
+                              onClick={() => setPresence(entry.memberId, true)}
                               className={`px-3 py-1 rounded text-sm font-medium ${
-                                attendance[m.id]
+                                attendance[entry.memberId]
                                   ? 'bg-green-100 text-green-800'
                                   : 'bg-slate-100 text-slate-600'
                               }`}
@@ -218,9 +227,9 @@ export default function PainelChamadaPage() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => setPresence(m.id, false)}
+                              onClick={() => setPresence(entry.memberId, false)}
                               className={`px-3 py-1 rounded text-sm font-medium ${
-                                attendance[m.id] === false
+                                attendance[entry.memberId] === false
                                   ? 'bg-red-100 text-red-800'
                                   : 'bg-slate-100 text-slate-600'
                               }`}
@@ -229,8 +238,8 @@ export default function PainelChamadaPage() {
                             </button>
                           </div>
                         ) : (
-                          <span className={attendance[m.id] ? 'text-green-600' : 'text-slate-400'}>
-                            {attendance[m.id] ? 'Presente' : 'Ausente'}
+                          <span className={attendance[entry.memberId] ? 'text-green-600' : 'text-slate-400'}>
+                            {attendance[entry.memberId] ? 'Presente' : 'Ausente'}
                           </span>
                         )}
                       </li>

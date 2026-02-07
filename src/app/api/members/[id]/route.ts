@@ -38,6 +38,13 @@ export async function PATCH(
     if (order !== undefined) partial.order = Number(order);
     if (photo !== undefined) partial.photo = photo || undefined;
     if (phone !== undefined) partial.phone = phone ? String(phone).trim() : undefined;
+    if (body.additionalRoles !== undefined) {
+      partial.additionalRoles = Array.isArray(body.additionalRoles)
+        ? body.additionalRoles
+          .filter((x: unknown) => x && typeof x === 'object' && 'category' in x && 'role' in x)
+          .map((x: { category: string; role: string }) => ({ category: x.category as Member['category'], role: String(x.role).trim() }))
+        : [];
+    }
 
     const updated = await updateMember(id, partial);
     return NextResponse.json(updated);

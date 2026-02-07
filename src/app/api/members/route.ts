@@ -15,13 +15,18 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, role, category, order, photo, phone } = body;
+    const { name, role, category, order, photo, phone, additionalRoles } = body;
 
     if (!name || !role || !category) {
       return NextResponse.json({ error: 'Nome, cargo e categoria são obrigatórios' }, { status: 400 });
     }
 
     const members = await getMembers();
+    const extra = Array.isArray(additionalRoles)
+      ? additionalRoles
+        .filter((x: unknown) => x && typeof x === 'object' && 'category' in x && 'role' in x)
+        .map((x: { category: string; role: string }) => ({ category: x.category as Member['category'], role: String(x.role).trim() }))
+      : [];
     const newMember = await insertMember({
       name: String(name).trim(),
       role: String(role).trim(),
@@ -29,6 +34,7 @@ export async function POST(request: Request) {
       order: typeof order === 'number' ? order : members.length + 1,
       photo: photo || undefined,
       phone: phone ? String(phone).trim() : undefined,
+      additionalRoles: extra,
     });
 
     return NextResponse.json(newMember);

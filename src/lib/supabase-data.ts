@@ -1,5 +1,12 @@
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { Member, News, InternalMinutes, FinanceEntry, CalendarEvent, RollCall, MembershipCandidate } from '@/types';
+import type { Member, News, InternalMinutes, FinanceEntry, CalendarEvent, RollCall, MembershipCandidate, MemberAdditionalRole } from '@/types';
+
+function parseAdditionalRoles(raw: unknown): MemberAdditionalRole[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((x): x is Record<string, unknown> => x != null && typeof x === 'object' && 'category' in x && 'role' in x)
+    .map((x) => ({ category: String(x.category) as Member['category'], role: String(x.role) }));
+}
 
 function toMember(row: Record<string, unknown>): Member {
   return {
@@ -11,6 +18,7 @@ function toMember(row: Record<string, unknown>): Member {
     order: Number(row.order ?? 0),
     userId: row.user_id ? String(row.user_id) : undefined,
     phone: row.phone ? String(row.phone) : undefined,
+    additionalRoles: parseAdditionalRoles(row.additional_roles),
   };
 }
 
@@ -124,6 +132,7 @@ export async function insertMember(m: Omit<Member, 'id'>): Promise<Member> {
     order: m.order,
     user_id: m.userId ?? null,
     phone: m.phone ?? null,
+    additional_roles: Array.isArray(m.additionalRoles) ? m.additionalRoles : [],
   };
   const { data, error } = await supabase.from('members').insert(row).select('*').single();
   if (error) throw error;
@@ -140,6 +149,7 @@ export async function updateMember(id: string, partial: Partial<Member>): Promis
   if (partial.order !== undefined) row.order = partial.order;
   if (partial.userId !== undefined) row.user_id = partial.userId;
   if (partial.phone !== undefined) row.phone = partial.phone;
+  if (partial.additionalRoles !== undefined) row.additional_roles = partial.additionalRoles;
   const { data, error } = await supabase.from('members').update(row).eq('id', id).select('*').single();
   if (error) throw error;
   return toMember(data);

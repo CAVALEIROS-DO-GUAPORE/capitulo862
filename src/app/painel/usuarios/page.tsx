@@ -8,18 +8,23 @@ const ROLES = [
   { value: 'admin', label: 'Admin' },
   { value: 'mestre_conselheiro', label: 'Mestre Conselheiro' },
   { value: 'primeiro_conselheiro', label: '1º Conselheiro' },
+  { value: 'segundo_conselheiro', label: '2º Conselheiro' },
   { value: 'escrivao', label: 'Escrivão' },
+  { value: 'hospitaleiro', label: 'Hospitaleiro' },
   { value: 'tesoureiro', label: 'Tesoureiro' },
+  { value: 'presidente_seniores', label: 'Presidente dos Sêniores' },
+  { value: 'vice_presidente_seniores', label: 'Vice-Presidente dos Sêniores' },
+  { value: 'senior', label: 'Sênior' },
+  { value: 'presidente_consultivo', label: 'Presidente Consultivo' },
+  { value: 'membro_organizador', label: 'Membro Organizador' },
+  { value: 'consultor', label: 'Consultor' },
+  { value: 'mestre_escudeiro', label: 'Mestre Escudeiro' },
+  { value: 'primeiro_escudeiro', label: '1º Escudeiro' },
+  { value: 'segundo_escudeiro', label: '2º Escudeiro' },
+  { value: 'escudeiro', label: 'Escudeiro' },
 ];
 
-const ROLE_LABELS: Record<string, string> = {
-  membro: 'Membro',
-  admin: 'Admin',
-  mestre_conselheiro: 'Mestre Conselheiro',
-  primeiro_conselheiro: '1º Conselheiro',
-  escrivao: 'Escrivão',
-  tesoureiro: 'Tesoureiro',
-};
+const ROLE_LABELS: Record<string, string> = Object.fromEntries(ROLES.map((r) => [r.value, r.label]));
 
 interface UserItem {
   id: string;
@@ -90,6 +95,26 @@ export default function PainelUsuariosPage() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [canManageUsers]);
+
+  async function handleRoleChange(u: UserItem, newRole: string) {
+    if (newRole === u.role) return;
+    setActionLoading(u.id);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/auth/users/${u.id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ role: newRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao alterar cargo');
+      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, role: newRole } : x)));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao alterar cargo');
+    } finally {
+      setActionLoading(null);
+    }
+  }
 
   async function handleToggleActive(u: UserItem) {
     if (!confirm(u.active ? 'Inativar este usuário? Ele não poderá mais acessar o painel.' : 'Reativar este usuário?')) return;
@@ -216,7 +241,18 @@ export default function PainelUsuariosPage() {
                     <tr key={u.id} className={`border-t border-slate-200 ${u.active === false ? 'bg-slate-50 opacity-75' : ''}`}>
                       <td className="px-4 py-3 text-slate-800">{u.name || '—'}</td>
                       <td className="px-4 py-3 text-slate-600 text-sm">{u.email || '—'}</td>
-                      <td className="px-4 py-3 text-slate-600 text-sm">{ROLE_LABELS[u.role] || u.role}</td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={u.role}
+                          onChange={(e) => handleRoleChange(u, e.target.value)}
+                          disabled={actionLoading === u.id}
+                          className="text-sm border border-slate-200 rounded px-2 py-1 bg-white text-slate-700 disabled:opacity-50"
+                        >
+                          {ROLES.map((r) => (
+                            <option key={r.value} value={r.value}>{r.label}</option>
+                          ))}
+                        </select>
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`text-xs px-2 py-1 rounded-full ${u.active !== false ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'}`}>
                           {u.active !== false ? 'Ativo' : 'Inativo'}

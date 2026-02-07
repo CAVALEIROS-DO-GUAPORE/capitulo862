@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
-import type { Member, MemberCategory } from '@/types';
+import type { Member, MemberCategory, MemberAdditionalRole } from '@/types';
 
 const CATEGORIES = [
   { value: 'demolays', label: 'DeMolays' },
@@ -18,12 +18,20 @@ export default function PainelMembrosPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<'add' | 'edit' | null>(null);
   const [editing, setEditing] = useState<Member | null>(null);
-  const [form, setForm] = useState<{ name: string; role: string; category: MemberCategory; order: number; phone: string }>({
+  const [form, setForm] = useState<{
+    name: string;
+    role: string;
+    category: MemberCategory;
+    order: number;
+    phone: string;
+    additionalRoles: MemberAdditionalRole[];
+  }>({
     name: '',
     role: '',
     category: 'demolays',
     order: 0,
     phone: '',
+    additionalRoles: [],
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -63,7 +71,7 @@ export default function PainelMembrosPage() {
   function openAdd() {
     setEditing(null);
     setViewing(null);
-    setForm({ name: '', role: '', category: 'demolays', order: members.length + 1, phone: '' });
+    setForm({ name: '', role: '', category: 'demolays', order: members.length + 1, phone: '', additionalRoles: [] });
     setModal('add');
     setError('');
   }
@@ -71,9 +79,51 @@ export default function PainelMembrosPage() {
   function openEdit(m: Member) {
     setEditing(m);
     setViewing(null);
-    setForm({ name: m.name, role: m.role, category: m.category, order: m.order, phone: m.phone || '' });
+    setForm({
+      name: m.name,
+      role: m.role,
+      category: m.category,
+      order: m.order,
+      phone: m.phone || '',
+      additionalRoles: m.additionalRoles?.slice() ?? [],
+    });
     setModal('edit');
     setError('');
+  }
+
+  function addAdditionalRole() {
+    const used: MemberCategory[] = [form.category, ...form.additionalRoles.map((r) => r.category)];
+    const available = CATEGORIES.filter((c) => !used.includes(c.value as MemberCategory));
+    if (available.length === 0) return;
+    setForm((f) => ({
+      ...f,
+      additionalRoles: [...f.additionalRoles, { category: available[0].value as MemberCategory, role: '' }],
+    }));
+  }
+
+  function updateAdditionalRole(index: number, field: 'category' | 'role', value: string) {
+    setForm((f) => ({
+      ...f,
+      additionalRoles: f.additionalRoles.map((r, i) =>
+        i === index ? { ...r, [field]: field === 'category' ? (value as MemberCategory) : value } : r
+      ),
+    }));
+  }
+
+  function removeAdditionalRole(index: number) {
+    setForm((f) => ({ ...f, additionalRoles: f.additionalRoles.filter((_, i) => i !== index) }));
+  }
+
+  function memberRolesDisplay(m: Member): string {
+    const parts = [m.role];
+    m.additionalRoles?.forEach((r) => parts.push(`${r.role} (${CATEGORIES.find((c) => c.value === r.category)?.label ?? r.category})`));
+    return parts.join('; ');
+  }
+
+  function memberCategoriesDisplay(m: Member): string {
+    const cats = [CATEGORIES.find((c) => c.value === m.category)?.label ?? m.category];
+    m.additionalRoles?.forEach((r) => cats.push(CATEGORIES.find((c) => c.value === r.category)?.label ?? r.category));
+    return [...new Set(cats)].join(', ');
   }
 
   function openProfile(m: Member) {
@@ -97,7 +147,14 @@ export default function PainelMembrosPage() {
         const res = await fetch(`/api/members/${editing.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
+          body: JSON.stringify({
+          name: form.name,
+          role: form.role,
+          category: form.category,
+          order: form.order,
+          phone: form.phone,
+          additionalRoles: form.additionalRoles.filter((r) => r.role.trim()),
+        }),
         });
         if (!res.ok) {
           const d = await res.json();
@@ -107,7 +164,14 @@ export default function PainelMembrosPage() {
         const res = await fetch('/api/members', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
+          body: JSON.stringify({
+          name: form.name,
+          role: form.role,
+          category: form.category,
+          order: form.order,
+          phone: form.phone,
+          additionalRoles: form.additionalRoles.filter((r) => r.role.trim()),
+        }),
         });
         if (!res.ok) {
           const d = await res.json();
@@ -180,8 +244,8 @@ export default function PainelMembrosPage() {
                     </div>
                   </td>
                   <td className="py-3 px-4 text-slate-700">{m.name}</td>
-                  <td className="py-3 px-4 text-blue-800 font-medium">{m.role}</td>
-                  <td className="py-3 px-4 text-slate-600 capitalize">{m.category}</td>
+                  <td className="py-3 px-4 text-blue-800 font-medium">{memberRolesDisplay(m)}</td>
+                  <td className="py-3 px-4 text-slate-600">{memberCategoriesDisplay(m)}</td>
                   <td className="py-3 px-4">
                     <div className="flex gap-2">
                       <button
@@ -234,8 +298,8 @@ export default function PainelMembrosPage() {
               </div>
               <div className="w-full space-y-2 text-center">
                 <p className="font-semibold text-slate-800 text-lg">{viewing.name}</p>
-                <p className="text-blue-800 font-medium">{viewing.role}</p>
-                <p className="text-slate-600 text-sm capitalize">{CATEGORIES.find((c) => c.value === viewing.category)?.label ?? viewing.category}</p>
+                <p className="text-blue-800 font-medium">{memberRolesDisplay(viewing)}</p>
+                <p className="text-slate-600 text-sm">{memberCategoriesDisplay(viewing)}</p>
                 {viewing.phone && (
                   <p className="text-slate-600 text-sm">
                     <span className="text-slate-500">Telefone:</span> {viewing.phone}
@@ -283,7 +347,7 @@ export default function PainelMembrosPage() {
                 />
               </div>
               <div>
-                <label className="block text-slate-700 text-sm mb-1">Categoria *</label>
+                <label className="block text-slate-700 text-sm mb-1">Categoria principal *</label>
                 <select
                   value={form.category}
                   onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as Member['category'] }))}
@@ -293,6 +357,40 @@ export default function PainelMembrosPage() {
                     <option key={c.value} value={c.value}>{c.label}</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="block text-slate-700 text-sm mb-1">Outras categorias/cargos (ex.: também Consultor)</label>
+                <p className="text-slate-500 text-xs mb-2">Quem é de mais de uma categoria (ex.: Sênior + Consultor) adiciona aqui, sem duplicar a pessoa.</p>
+                {form.additionalRoles.map((r, i) => (
+                  <div key={i} className="flex gap-2 mb-2">
+                    <select
+                      value={r.category}
+                      onChange={(e) => updateAdditionalRole(i, 'category', e.target.value)}
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg"
+                    >
+                      {CATEGORIES.filter(
+                        (c) =>
+                          c.value === r.category ||
+                          (c.value !== form.category && !form.additionalRoles.some((o, j) => j !== i && o.category === c.value))
+                      ).map((c) => (
+                        <option key={c.value} value={c.value}>{c.label}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={r.role}
+                      onChange={(e) => updateAdditionalRole(i, 'role', e.target.value)}
+                      placeholder="Cargo"
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg"
+                    />
+                    <button type="button" onClick={() => removeAdditionalRole(i)} className="px-2 py-1 text-red-600 hover:bg-red-50 rounded">×</button>
+                  </div>
+                ))}
+                {form.additionalRoles.length < CATEGORIES.length - 1 && (
+                  <button type="button" onClick={addAdditionalRole} className="text-sm text-blue-600 hover:underline">
+                    + Adicionar outra categoria/cargo
+                  </button>
+                )}
               </div>
               <div>
                 <label className="block text-slate-700 text-sm mb-1">Telefone (opcional)</label>

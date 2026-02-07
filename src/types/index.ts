@@ -20,6 +20,12 @@ export type UserRole =
 
 export type MemberCategory = 'demolays' | 'seniores' | 'consultores' | 'escudeiros';
 
+/** Outra categoria/cargo do mesmo membro (ex.: Sênior que também é Consultor) */
+export interface MemberAdditionalRole {
+  category: MemberCategory;
+  role: string;
+}
+
 export interface Member {
   id: string;
   name: string;
@@ -29,6 +35,8 @@ export interface Member {
   order: number;
   userId?: string;
   phone?: string;
+  /** Outras categorias/cargos (ex.: Presidente dos Sêniores + Consultor) — não duplica a pessoa */
+  additionalRoles?: MemberAdditionalRole[];
 }
 
 export interface News {

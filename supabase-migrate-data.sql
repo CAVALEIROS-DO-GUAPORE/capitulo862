@@ -3,8 +3,9 @@
 -- As APIs usam SUPABASE_SERVICE_ROLE_KEY (bypass RLS).
 -- Pré-requisito: execute antes o supabase-schema.sql (cria members, news, minutes, calendar_events, membership_candidates, finance_entries).
 
--- ========== MEMBERS: coluna phone ==========
+-- ========== MEMBERS: coluna phone e additional_roles (múltiplas categorias/cargos por pessoa) ==========
 ALTER TABLE public.members ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.members ADD COLUMN IF NOT EXISTS additional_roles JSONB DEFAULT '[]';
 
 -- ========== MINUTES: colunas da ata estendida ==========
 ALTER TABLE public.minutes ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'rascunho';
@@ -36,7 +37,16 @@ CREATE TABLE IF NOT EXISTS public.roll_calls (
 );
 
 ALTER TABLE public.roll_calls ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "roll_calls all" ON public.roll_calls;
 CREATE POLICY "roll_calls all" ON public.roll_calls FOR ALL USING (true) WITH CHECK (true);
 
 -- ========== Realtime (roll_calls) ==========
-ALTER PUBLICATION supabase_realtime ADD TABLE roll_calls;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND tablename = 'roll_calls'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE roll_calls;
+  END IF;
+END $$;
