@@ -102,12 +102,16 @@ ALTER TABLE calendar_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE membership_candidates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE finance_entries ENABLE ROW LEVEL SECURITY;
 
--- Políticas: members e news são públicos para leitura
+-- Políticas: members e news são públicos para leitura (DROP evita erro se já existir)
+DROP POLICY IF EXISTS "members public read" ON members;
 CREATE POLICY "members public read" ON members FOR SELECT USING (true);
+DROP POLICY IF EXISTS "news public read" ON news;
 CREATE POLICY "news public read" ON news FOR SELECT USING (true);
 
 -- Política: usuários leem e atualizam seu próprio perfil
+DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
 CREATE POLICY "Users can read own profile" ON profiles FOR SELECT USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 
 -- Storage: bucket avatars (criar no Supabase Dashboard > Storage)
