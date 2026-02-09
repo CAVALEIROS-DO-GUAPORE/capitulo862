@@ -43,7 +43,7 @@ const sections: { id: SectionId; label: string }[] = [
 ];
 
 export default function MembrosPage() {
-  const [activeSection, setActiveSection] = useState<SectionId | null>(null);
+  const [activeSection, setActiveSection] = useState<SectionId>('demolays');
   const [members, setMembers] = useState<Member[]>([]);
 
   useEffect(() => {
@@ -99,14 +99,15 @@ export default function MembrosPage() {
           Membros do Capítulo
         </h1>
         <p className="text-slate-600 text-center mb-10 max-w-2xl mx-auto">
-          Selecione uma seção para ver os membros do Capítulo Cavaleiros do Guaporé nº 862.
+          DeMolays aparecem ao abrir a página. Selecione outra seção para ver Sêniores, Consultores ou Escudeiros.
         </p>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
           {sections.map((section) => (
             <button
               key={section.id}
-              onClick={() => setActiveSection(activeSection === section.id ? null : section.id)}
+              type="button"
+              onClick={() => setActiveSection(section.id)}
               className={`py-4 px-4 rounded-xl font-semibold transition-all border-2 ${
                 activeSection === section.id
                   ? 'bg-blue-600 text-white border-blue-600 shadow-lg'
@@ -156,11 +157,6 @@ export default function MembrosPage() {
           />
         )}
 
-        {!activeSection && (
-          <p className="text-center text-slate-500 py-12">
-            Clique em uma seção acima para visualizar os membros.
-          </p>
-        )}
       </div>
     </div>
   );

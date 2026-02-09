@@ -56,7 +56,6 @@ export default function PainelAtasPage() {
       try {
         const u = JSON.parse(stored);
         setUser(u);
-        if (!form.escrivaoName && u.name) setForm((f) => ({ ...f, escrivaoName: u.name || '' }));
       } catch {}
     }
   }, []);
@@ -92,10 +91,13 @@ export default function PainelAtasPage() {
 
   function openAdd() {
     setEditing(null);
+    const escrivaoMember = members.find((m) =>
+      m.category === 'demolays' && (m.role === 'Escrivão' || m.role === 'escrivao')
+    );
     setForm({
       ...defaultForm,
       date: new Date().toISOString().slice(0, 10),
-      escrivaoName: user?.name || '',
+      escrivaoName: escrivaoMember?.name || '',
     });
     setModal('add');
     setError('');
@@ -110,6 +112,9 @@ export default function PainelAtasPage() {
       return;
     }
     const mm = data as InternalMinutes;
+    const escrivaoMember = members.find((m) =>
+      m.category === 'demolays' && (m.role === 'Escrivão' || m.role === 'escrivao')
+    );
     setForm({
       title: mm.title || '',
       content: mm.content || '',
@@ -127,7 +132,7 @@ export default function PainelAtasPage() {
       presiding2c: mm.presiding2c || '',
       tiosPresentes: Array.isArray(mm.tiosPresentes) ? mm.tiosPresentes : [],
       trabalhosTexto: mm.trabalhosTexto || '',
-      escrivaoName: mm.escrivaoName || user?.name || '',
+      escrivaoName: mm.escrivaoName || escrivaoMember?.name || '',
     });
     setModal('edit');
     setError('');
@@ -138,30 +143,55 @@ export default function PainelAtasPage() {
     setEditing(null);
   }
 
+  function normalizeDateForApi(dateStr: string): string {
+    const t = dateStr.trim();
+    if (!t) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+    const ddmmyy = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (ddmmyy) {
+      const [, d, m, y] = ddmmyy;
+      return `${y}-${m!.padStart(2, '0')}-${d!.padStart(2, '0')}`;
+    }
+    return t;
+  }
+
+  function findMemberByRole(mems: Member[], roleLabels: string[], category: string): Member | undefined {
+    return mems.find((m) => m.category === category && roleLabels.some((r) => r === m.role || r.toLowerCase().replace(/\s/g, '_') === m.role));
+  }
+
   async function pullFromRollCall() {
-    const date = pullRollCallDate || form.rollCallDate;
-    if (!date) {
+    const rawDate = pullRollCallDate || form.rollCallDate;
+    if (!rawDate?.trim()) {
       setError('Informe a data da chamada para puxar os presentes.');
       return;
     }
+    const date = normalizeDateForApi(rawDate);
     setError('');
     try {
       const [rollRes, membersRes] = await Promise.all([
         fetch(`/api/roll-calls?date=${encodeURIComponent(date)}`),
         fetch('/api/members'),
       ]);
-      const roll = await rollRes.json();
-      const mems = await membersRes.json() as Member[];
-      const attendance = roll?.attendance || {};
+      const roll = rollRes.ok ? await rollRes.json() : null;
+      const mems = (await membersRes.json()) as Member[];
+      const attendance = (roll && typeof roll.attendance === 'object' ? roll.attendance : {}) as Record<string, boolean>;
+
+      const presidingMc = findMemberByRole(mems, ['Mestre Conselheiro', 'mestre_conselheiro'], 'demolays')?.name ?? '';
+      const presiding1c = findMemberByRole(mems, ['1º Conselheiro', 'primeiro_conselheiro'], 'demolays')?.name ?? '';
+      const presiding2c = findMemberByRole(mems, ['2º Conselheiro', 'segundo_conselheiro'], 'demolays')?.name ?? '';
+      const escrivaoMember = findMemberByRole(mems, ['Escrivão', 'escrivao'], 'demolays');
+      const tiosFromCall = mems
+        .filter((m) => m.category === 'consultores' && attendance[m.id])
+        .map((m) => m.name);
+
       setForm((f) => ({
         ...f,
         rollCallDate: date,
-        presidingMc: mems.find((m) => m.role === 'mestre_conselheiro')?.name || '',
-        presiding1c: mems.find((m) => m.role === 'primeiro_conselheiro')?.name || '',
-        presiding2c: mems.find((m) => m.role === 'segundo_conselheiro')?.name || '',
-        tiosPresentes: mems
-          .filter((m) => m.category === 'consultores' && attendance[m.id])
-          .map((m) => m.name),
+        presidingMc,
+        presiding1c,
+        presiding2c,
+        escrivaoName: escrivaoMember?.name ?? f.escrivaoName,
+        tiosPresentes: roll ? tiosFromCall : f.tiosPresentes,
       }));
       setPullRollCallDate('');
     } catch {
