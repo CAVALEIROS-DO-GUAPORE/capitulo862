@@ -67,36 +67,24 @@ export default function MemberSection({
         return (
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-slate-700 mb-4">Diretoria</h3>
-            {layout ? (
-              <div className="flex flex-col items-center gap-6 max-w-2xl mx-auto">
-                <div className="flex justify-center">
-                  <MemberCard
-                    key={layout.mc.id}
-                    name={layout.mc.name}
-                    role={layout.mc.role}
-                    photo={layout.mc.photo}
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full">
-                  <div className="flex justify-center sm:justify-end">
-                    <MemberCard
-                      key={layout.c1.id}
-                      name={layout.c1.name}
-                      role={layout.c1.role}
-                      photo={layout.c1.photo}
-                    />
+            {layout ? (() => {
+              const { mc, c1, c2 } = layout;
+              return (
+                <div className="flex flex-col items-center gap-6 max-w-2xl mx-auto">
+                  <div className="flex justify-center">
+                    <MemberCard key={mc.id} name={mc.name} role={mc.role} photo={mc.photo} />
                   </div>
-                  <div className="flex justify-center sm:justify-start">
-                    <MemberCard
-                      key={layout.c2.id}
-                      name={layout.c2.name}
-                      role={layout.c2.role}
-                      photo={layout.c2.photo}
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full">
+                    <div className="flex justify-center sm:justify-end">
+                      <MemberCard key={c1.id} name={c1.name} role={c1.role} photo={c1.photo} />
+                    </div>
+                    <div className="flex justify-center sm:justify-start">
+                      <MemberCard key={c2.id} name={c2.name} role={c2.role} photo={c2.photo} />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
+              );
+            })() : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {directorList.map((member) => (
                   <MemberCard
