@@ -27,7 +27,7 @@ function is2c(role: string) {
   return r.includes('2º') || r.includes('2o') || r === 'segundo_conselheiro';
 }
 
-function getDemolayDirectorLayout(directors: Member[]): { mc?: Member; c1?: Member; c2?: Member } | null {
+function getDemolayDirectorLayout(directors: Member[]): { mc: Member; c1: Member; c2: Member } | null {
   if (directors.length !== 3) return null;
   let mc: Member | undefined;
   let c1: Member | undefined;
