@@ -50,6 +50,10 @@ export async function PATCH(
     if (body.tiosPresentes !== undefined) partial.tiosPresentes = Array.isArray(body.tiosPresentes) ? body.tiosPresentes : (m.tiosPresentes || []);
     if (body.trabalhosTexto !== undefined) partial.trabalhosTexto = body.trabalhosTexto;
     if (body.escrivaoName !== undefined) partial.escrivaoName = body.escrivaoName;
+    if (body.ataGestao !== undefined) partial.ataGestao = body.ataGestao;
+    if (body.tioConselho !== undefined) partial.tioConselho = body.tioConselho;
+    if (body.palavraSecreta !== undefined) partial.palavraSecreta = body.palavraSecreta;
+    if (body.pauta !== undefined) partial.pauta = body.pauta;
 
     if (newStatus === 'publicada' && prevStatus !== 'publicada') {
       const year = m.date ? new Date(m.date).getFullYear() : new Date().getFullYear();

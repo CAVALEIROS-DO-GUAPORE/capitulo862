@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useDialogs } from '@/components/DialogsProvider';
 
 // Cargos do painel (rank interno): só estes ao criar/editar usuário. Cargos do capítulo (ex.: Sênior, Consultor) ficam no cadastro de Membros.
 const PANEL_ROLES = [
@@ -25,6 +26,7 @@ interface UserItem {
 }
 
 export default function PainelUsuariosPage() {
+  const { confirm, toast } = useDialogs();
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -99,14 +101,20 @@ export default function PainelUsuariosPage() {
       if (!res.ok) throw new Error(data.error || 'Erro ao alterar cargo');
       setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, role: newRole } : x)));
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao alterar cargo');
+      toast(err instanceof Error ? err.message : 'Erro ao alterar cargo', 'error');
     } finally {
       setActionLoading(null);
     }
   }
 
   async function handleToggleActive(u: UserItem) {
-    if (!confirm(u.active ? 'Inativar este usuário? Ele não poderá mais acessar o painel.' : 'Reativar este usuário?')) return;
+    const ok = await confirm({
+      title: u.active ? 'Inativar usuário' : 'Reativar usuário',
+      message: u.active ? 'Inativar este usuário? Ele não poderá mais acessar o painel.' : 'Reativar este usuário?',
+      confirmLabel: 'Sim',
+      danger: !!u.active,
+    });
+    if (!ok) return;
     setActionLoading(u.id);
     try {
       const headers = await getAuthHeaders();
@@ -119,14 +127,20 @@ export default function PainelUsuariosPage() {
       if (!res.ok) throw new Error(data.error || 'Erro');
       setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, active: !u.active } : x)));
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao alterar');
+      toast(err instanceof Error ? err.message : 'Erro ao alterar', 'error');
     } finally {
       setActionLoading(null);
     }
   }
 
   async function handleDelete(u: UserItem) {
-    if (!confirm(`Excluir permanentemente o usuário ${u.email || u.name || u.id}? Esta ação não pode ser desfeita.`)) return;
+    const ok = await confirm({
+      title: 'Excluir usuário',
+      message: `Excluir permanentemente o usuário ${u.email || u.name || u.id}? Esta ação não pode ser desfeita.`,
+      confirmLabel: 'Excluir',
+      danger: true,
+    });
+    if (!ok) return;
     setActionLoading(u.id);
     try {
       const headers = await getAuthHeaders();
@@ -135,7 +149,7 @@ export default function PainelUsuariosPage() {
       if (!res.ok) throw new Error(data.error || 'Erro');
       setUsers((prev) => prev.filter((x) => x.id !== u.id));
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao excluir');
+      toast(err instanceof Error ? err.message : 'Erro ao excluir', 'error');
     } finally {
       setActionLoading(null);
     }

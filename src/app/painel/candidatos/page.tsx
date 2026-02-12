@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useDialogs } from '@/components/DialogsProvider';
 import Link from 'next/link';
 
 interface Candidate {
@@ -23,6 +24,7 @@ interface Candidate {
 }
 
 export default function PainelCandidatosPage() {
+  const { confirm, toast } = useDialogs();
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,14 +63,21 @@ export default function PainelCandidatosPage() {
   }, [loadCandidates]);
 
   async function handleDelete(id: string) {
-    if (!confirm('Excluir esta candidatura?')) return;
+    const ok = await confirm({
+      title: 'Excluir candidatura',
+      message: 'Excluir esta candidatura?',
+      confirmLabel: 'Excluir',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/candidatos/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Erro ao excluir');
       setCandidates((prev) => prev.filter((c) => c.id !== id));
       if (selected?.id === id) setSelected(null);
+      toast('Candidatura excluída.', 'success');
     } catch {
-      alert('Erro ao excluir');
+      toast('Erro ao excluir.', 'error');
     }
   }
 

@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, type PDFFont } from 'pdf-lib';
 import type { InternalMinutes, Member, RollCall } from '@/types';
 
 const MARGIN = 50;
@@ -24,22 +24,27 @@ function formatDateParts(dateStr: string): { day: string; month: string; year: s
   return { day, month, year };
 }
 
-function drawText(
-  page: { drawText: (text: string, opts: { x: number; y: number; size: number; font: unknown; color?: unknown }) => void },
-  text: string,
-  x: number,
-  y: number,
-  font: unknown,
-  size: number = FONT_SIZE,
-  maxWidth?: number
-): number {
-  const lines = text.split('\n');
-  let currentY = y;
-  for (const line of lines) {
-    page.drawText(line, { x, y: currentY, size, font, color: rgb(0.1, 0.1, 0.1) });
-    currentY -= LINE_HEIGHT;
+/** Quebra texto em linhas que cabem em maxWidth (em pontos), sem truncar. */
+function wrapText(font: PDFFont, text: string, fontSize: number, maxWidth: number): string[] {
+  if (!text.trim()) return [];
+  const lines: string[] = [];
+  const paragraphs = text.split('\n');
+  for (const para of paragraphs) {
+    const words = para.trim().split(/\s+/);
+    let currentLine = '';
+    for (const word of words) {
+      const candidate = currentLine ? `${currentLine} ${word}` : word;
+      const w = font.widthOfTextAtSize(candidate, fontSize);
+      if (w <= maxWidth) {
+        currentLine = candidate;
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = word;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
   }
-  return currentY;
+  return lines.length ? lines : [''];
 }
 
 export async function buildAtaPdf(
@@ -101,9 +106,9 @@ export async function buildAtaPdf(
     : (minute.locationName || minute.city)
       ? `No Templo da ${[minute.locationName, minute.city].filter(Boolean).join(', ')}.`
       : 'No Templo indicado na convocação.';
-  const locLines = locationText.match(/.{1,80}(\s|$)/g) || [locationText];
+  const locLines = wrapText(font, locationText, FONT_SIZE, contentWidth);
   for (const line of locLines) {
-    page.drawText(line.trim(), { x: innerLeft, y, size: FONT_SIZE, font, color: rgb(0.1, 0.1, 0.1) });
+    page.drawText(line, { x: innerLeft, y, size: FONT_SIZE, font, color: rgb(0.1, 0.1, 0.1) });
     y -= LINE_HEIGHT;
   }
   y -= 4;
@@ -121,8 +126,12 @@ export async function buildAtaPdf(
   (['demolays', 'seniores', 'consultores', 'escudeiros'] as const).forEach((cat) => {
     const names = presentByCategory[cat];
     if (names?.length) {
-      page.drawText(`${CATEGORY_LABELS[cat]}: ${names.join(', ')}`, { x: innerLeft, y, size: FONT_SIZE, font, color: rgb(0.1, 0.1, 0.1) });
-      y -= LINE_HEIGHT;
+      const lineText = `${CATEGORY_LABELS[cat]}: ${names.join(', ')}`;
+      const wrapped = wrapText(font, lineText, FONT_SIZE, contentWidth);
+      for (const line of wrapped) {
+        page.drawText(line, { x: innerLeft, y, size: FONT_SIZE, font, color: rgb(0.1, 0.1, 0.1) });
+        y -= LINE_HEIGHT;
+      }
     }
   });
   y -= 4;
@@ -131,16 +140,23 @@ export async function buildAtaPdf(
     page.drawText('Presidência:', { x: innerLeft, y, size: FONT_SIZE, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
     y -= LINE_HEIGHT;
     const pres = [minute.presidingMc && `Mestre Conselheiro: ${minute.presidingMc}`, minute.presiding1c && `1º Conselheiro: ${minute.presiding1c}`, minute.presiding2c && `2º Conselheiro: ${minute.presiding2c}`].filter(Boolean);
-    pres.forEach((line) => {
-      page.drawText(line as string, { x: innerLeft, y, size: FONT_SIZE, font, color: rgb(0.1, 0.1, 0.1) });
-      y -= LINE_HEIGHT;
-    });
+    for (const line of pres) {
+      const wrapped = wrapText(font, line as string, FONT_SIZE, contentWidth);
+      for (const w of wrapped) {
+        page.drawText(w, { x: innerLeft, y, size: FONT_SIZE, font, color: rgb(0.1, 0.1, 0.1) });
+        y -= LINE_HEIGHT;
+      }
+    }
     y -= 4;
   }
 
   if (minute.tiosPresentes?.length) {
-    page.drawText(`Tios presentes: ${minute.tiosPresentes.join(', ')}`, { x: innerLeft, y, size: FONT_SIZE, font, color: rgb(0.1, 0.1, 0.1) });
-    y -= LINE_HEIGHT;
+    const tiosLine = `Tios presentes: ${minute.tiosPresentes.join(', ')}`;
+    const wrapped = wrapText(font, tiosLine, FONT_SIZE, contentWidth);
+    for (const line of wrapped) {
+      page.drawText(line, { x: innerLeft, y, size: FONT_SIZE, font, color: rgb(0.1, 0.1, 0.1) });
+      y -= LINE_HEIGHT;
+    }
     y -= 4;
   }
 
@@ -152,11 +168,11 @@ export async function buildAtaPdf(
 
   if (minute.trabalhosTexto) {
     const trabLine = `Os trabalhos (${minute.trabalhosTexto}).`;
-    const trabChunks = trabLine.match(/.{1,85}(\s|$)/g) || [trabLine];
-    trabChunks.forEach((line) => {
-      page.drawText(line.trim(), { x: innerLeft, y, size: FONT_SIZE, font, color: rgb(0.1, 0.1, 0.1) });
+    const trabWrapped = wrapText(font, trabLine, FONT_SIZE, contentWidth);
+    for (const line of trabWrapped) {
+      page.drawText(line, { x: innerLeft, y, size: FONT_SIZE, font, color: rgb(0.1, 0.1, 0.1) });
       y -= LINE_HEIGHT;
-    });
+    }
     y -= 4;
   }
 
@@ -164,18 +180,15 @@ export async function buildAtaPdf(
   y -= LINE_HEIGHT;
 
   const content = minute.content || '';
-  const contentLines = content.split('\n');
-  for (const line of contentLines) {
-    const chunks = line.match(/.{1,85}(\s|$)/g) || [line];
-    for (const chunk of chunks) {
-      if (y < innerBottom + LINE_HEIGHT) {
-        page = doc.addPage([pageWidth, pageHeight]);
-        drawFrame();
-        y = innerTop;
-      }
-      page.drawText(chunk.trim(), { x: innerLeft, y, size: FONT_SIZE, font, color: rgb(0.1, 0.1, 0.1) });
-      y -= LINE_HEIGHT;
+  const contentWrapped = wrapText(font, content, FONT_SIZE, contentWidth);
+  for (const line of contentWrapped) {
+    if (y < innerBottom + LINE_HEIGHT) {
+      page = doc.addPage([pageWidth, pageHeight]);
+      drawFrame();
+      y = innerTop;
     }
+    page.drawText(line, { x: innerLeft, y, size: FONT_SIZE, font, color: rgb(0.1, 0.1, 0.1) });
+    y -= LINE_HEIGHT;
   }
   y -= 8;
 
@@ -185,8 +198,13 @@ export async function buildAtaPdf(
     y = innerTop;
   }
   if (minute.escrivaoName) {
-    page.drawText(`Eu, ${minute.escrivaoName}, Escrivão deste Capítulo,`, { x: innerLeft, y, size: FONT_SIZE, font, color: rgb(0.1, 0.1, 0.1) });
-    y -= LINE_HEIGHT + 20;
+    const escrivaoLine = `Eu, ${minute.escrivaoName}, Escrivão deste Capítulo,`;
+    const escrivaoWrapped = wrapText(font, escrivaoLine, FONT_SIZE, contentWidth);
+    for (const line of escrivaoWrapped) {
+      page.drawText(line, { x: innerLeft, y, size: FONT_SIZE, font, color: rgb(0.1, 0.1, 0.1) });
+      y -= LINE_HEIGHT;
+    }
+    y -= 16;
     page.drawText('_________________________', { x: innerLeft, y, size: FONT_SIZE, font, color: rgb(0.3, 0.3, 0.3) });
     page.drawText('Assinatura', { x: innerLeft, y: y - 12, size: 9, font, color: rgb(0.4, 0.4, 0.4) });
   }

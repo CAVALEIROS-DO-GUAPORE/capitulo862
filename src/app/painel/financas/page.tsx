@@ -2,9 +2,11 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useDialogs } from '@/components/DialogsProvider';
 import type { FinanceEntry } from '@/types';
 
 export default function PainelFinancasPage() {
+  const { confirm, toast } = useDialogs();
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [entries, setEntries] = useState<FinanceEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -129,13 +131,20 @@ export default function PainelFinancasPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Excluir esta movimentação?')) return;
+    const ok = await confirm({
+      title: 'Excluir movimentação',
+      message: 'Excluir esta movimentação?',
+      confirmLabel: 'Excluir',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/finance/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Erro ao excluir');
       loadEntries();
+      toast('Movimentação excluída.', 'success');
     } catch {
-      alert('Erro ao excluir');
+      toast('Erro ao excluir.', 'error');
     }
   }
 

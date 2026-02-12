@@ -33,6 +33,10 @@ export async function POST(request: Request) {
       tiosPresentes = [],
       trabalhosTexto = '',
       escrivaoName,
+      ataGestao,
+      tioConselho,
+      palavraSecreta,
+      pauta,
     } = body;
 
     if (!title || !content) {
@@ -67,11 +71,22 @@ export async function POST(request: Request) {
       tiosPresentes: Array.isArray(tiosPresentes) ? tiosPresentes : [],
       trabalhosTexto: String(trabalhosTexto || ''),
       escrivaoName: escrivaoName ? String(escrivaoName) : undefined,
+      ataGestao: ataGestao ? String(ataGestao) : undefined,
+      tioConselho: tioConselho ? String(tioConselho) : undefined,
+      palavraSecreta: palavraSecreta ? String(palavraSecreta) : undefined,
+      pauta: pauta ? String(pauta) : undefined,
     });
 
     return NextResponse.json(newItem);
   } catch (err) {
-    console.error(err);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[POST /api/minutes]', err);
+    if (message.includes('Missing Supabase') || message.includes('credentials')) {
+      return NextResponse.json(
+        { error: 'Serviço indisponível. Verifique as variáveis de ambiente do Supabase (Vercel).' },
+        { status: 503 }
+      );
+    }
     return NextResponse.json({ error: 'Erro ao salvar ata' }, { status: 500 });
   }
 }

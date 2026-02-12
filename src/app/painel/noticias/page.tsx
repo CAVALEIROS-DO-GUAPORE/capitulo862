@@ -3,9 +3,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
+import { useDialogs } from '@/components/DialogsProvider';
 import type { News } from '@/types';
 
 export default function PainelNoticiasPage() {
+  const { confirm, toast } = useDialogs();
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [news, setNews] = useState<News[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,13 +148,20 @@ export default function PainelNoticiasPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Excluir esta notícia?')) return;
+    const ok = await confirm({
+      title: 'Excluir notícia',
+      message: 'Excluir esta notícia?',
+      confirmLabel: 'Excluir',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/news/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Erro ao excluir');
       loadNews();
+      toast('Notícia excluída.', 'success');
     } catch {
-      alert('Erro ao excluir');
+      toast('Erro ao excluir.', 'error');
     }
   }
 

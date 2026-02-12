@@ -60,6 +60,10 @@ function toMinute(row: Record<string, unknown>): InternalMinutes {
     tiosPresentes: Array.isArray(row.tios_presentes) ? row.tios_presentes as string[] : undefined,
     trabalhosTexto: row.trabalhos_texto ? String(row.trabalhos_texto) : undefined,
     escrivaoName: row.escrivao_name ? String(row.escrivao_name) : undefined,
+    ataGestao: row.ata_gestao ? String(row.ata_gestao) : undefined,
+    tioConselho: row.tio_conselho ? String(row.tio_conselho) : undefined,
+    palavraSecreta: row.palavra_secreta ? String(row.palavra_secreta) : undefined,
+    pauta: row.pauta ? String(row.pauta) : undefined,
   };
 }
 
@@ -223,12 +227,18 @@ export async function getNextAtaNumber(year: number): Promise<number> {
   return maxNum + 1;
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function toAuthorIdNullable(value: string | undefined): string | null {
+  if (value == null || value === '' || value === 'system') return null;
+  return UUID_REGEX.test(value) ? value : null;
+}
+
 export async function insertMinute(m: Omit<InternalMinutes, 'id'>): Promise<InternalMinutes> {
   const supabase = createAdminClient();
   const row = {
     title: m.title,
     content: m.content,
-    author_id: m.authorId ?? null,
+    author_id: toAuthorIdNullable(m.authorId),
     status: m.status ?? 'rascunho',
     ata_number: m.ataNumber ?? null,
     ata_year: m.ataYear ?? null,
@@ -247,6 +257,10 @@ export async function insertMinute(m: Omit<InternalMinutes, 'id'>): Promise<Inte
     tios_presentes: m.tiosPresentes ?? [],
     trabalhos_texto: m.trabalhosTexto ?? null,
     escrivao_name: m.escrivaoName ?? null,
+    ata_gestao: m.ataGestao ?? null,
+    tio_conselho: m.tioConselho ?? null,
+    palavra_secreta: m.palavraSecreta ?? null,
+    pauta: m.pauta ?? null,
   };
   const { data, error } = await supabase.from('minutes').insert(row).select('*').single();
   if (error) throw error;
@@ -276,6 +290,10 @@ export async function updateMinute(id: string, partial: Partial<InternalMinutes>
   if (partial.tiosPresentes !== undefined) row.tios_presentes = partial.tiosPresentes;
   if (partial.trabalhosTexto !== undefined) row.trabalhos_texto = partial.trabalhosTexto;
   if (partial.escrivaoName !== undefined) row.escrivao_name = partial.escrivaoName;
+  if (partial.ataGestao !== undefined) row.ata_gestao = partial.ataGestao;
+  if (partial.tioConselho !== undefined) row.tio_conselho = partial.tioConselho;
+  if (partial.palavraSecreta !== undefined) row.palavra_secreta = partial.palavraSecreta;
+  if (partial.pauta !== undefined) row.pauta = partial.pauta;
   const { data, error } = await supabase.from('minutes').update(row).eq('id', id).select('*').single();
   if (error) throw error;
   return toMinute(data);

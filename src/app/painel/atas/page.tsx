@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useDialogs } from '@/components/DialogsProvider';
 import type { InternalMinutes, AtaType } from '@/types';
 import type { Member } from '@/types';
 
@@ -11,6 +12,8 @@ const ATA_TYPES: { value: AtaType; label: string }[] = [
   { value: 'EVENTO', label: 'Evento' },
   { value: 'OUTROS', label: 'Outros' },
 ];
+
+const LOCAL_CAPITULO = 'Augusta e Respeitável Loja Simbólica Estrela do Guaporé nº 63 na cidade de Pontes e Lacerda - MT';
 
 const defaultForm = {
   title: '',
@@ -30,11 +33,16 @@ const defaultForm = {
   tiosPresentes: [] as string[],
   trabalhosTexto: '',
   escrivaoName: '',
+  ataGestao: '',
+  tioConselho: '',
+  palavraSecreta: '',
+  pauta: '',
 };
 
 type FormState = typeof defaultForm;
 
 export default function PainelAtasPage() {
+  const { confirm, toast } = useDialogs();
   const [user, setUser] = useState<{ role: string; name?: string } | null>(null);
   const [minutes, setMinutes] = useState<InternalMinutes[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -91,12 +99,16 @@ export default function PainelAtasPage() {
 
   function openAdd() {
     setEditing(null);
-    const escrivaoMember = members.find((m) =>
-      m.category === 'demolays' && (m.role === 'Escrivão' || m.role === 'escrivao')
-    );
+    const presidingMc = findMemberByRole(members, ['Mestre Conselheiro', 'mestre_conselheiro'], 'demolays')?.name ?? '';
+    const presiding1c = findMemberByRole(members, ['1º Conselheiro', 'primeiro_conselheiro'], 'demolays')?.name ?? '';
+    const presiding2c = findMemberByRole(members, ['2º Conselheiro', 'segundo_conselheiro'], 'demolays')?.name ?? '';
+    const escrivaoMember = findMemberByRole(members, ['Escrivão', 'escrivao'], 'demolays');
     setForm({
       ...defaultForm,
       date: new Date().toISOString().slice(0, 10),
+      presidingMc,
+      presiding1c,
+      presiding2c,
       escrivaoName: escrivaoMember?.name || '',
     });
     setModal('add');
@@ -133,6 +145,10 @@ export default function PainelAtasPage() {
       tiosPresentes: Array.isArray(mm.tiosPresentes) ? mm.tiosPresentes : [],
       trabalhosTexto: mm.trabalhosTexto || '',
       escrivaoName: mm.escrivaoName || escrivaoMember?.name || '',
+      ataGestao: mm.ataGestao || '',
+      tioConselho: mm.tioConselho || '',
+      palavraSecreta: mm.palavraSecreta || '',
+      pauta: mm.pauta || '',
     });
     setModal('edit');
     setError('');
@@ -157,6 +173,21 @@ export default function PainelAtasPage() {
 
   function findMemberByRole(mems: Member[], roleLabels: string[], category: string): Member | undefined {
     return mems.find((m) => m.category === category && roleLabels.some((r) => r === m.role || r.toLowerCase().replace(/\s/g, '_') === m.role));
+  }
+
+  /** Preenche MC, 1ºC, 2ºC e Escrivão a partir dos cargos atuais dos membros (editável depois). */
+  function fillPresidencyFromCurrentRoles() {
+    const presidingMc = findMemberByRole(members, ['Mestre Conselheiro', 'mestre_conselheiro'], 'demolays')?.name ?? '';
+    const presiding1c = findMemberByRole(members, ['1º Conselheiro', 'primeiro_conselheiro'], 'demolays')?.name ?? '';
+    const presiding2c = findMemberByRole(members, ['2º Conselheiro', 'segundo_conselheiro'], 'demolays')?.name ?? '';
+    const escrivaoName = findMemberByRole(members, ['Escrivão', 'escrivao'], 'demolays')?.name ?? '';
+    setForm((f) => ({
+      ...f,
+      presidingMc,
+      presiding1c,
+      presiding2c,
+      escrivaoName: escrivaoName || f.escrivaoName,
+    }));
   }
 
   async function pullFromRollCall() {
@@ -220,6 +251,10 @@ export default function PainelAtasPage() {
     const payload = {
       ...form,
       status: publish ? 'publicada' : 'rascunho',
+      ataGestao: form.ataGestao || undefined,
+      tioConselho: form.tioConselho || undefined,
+      palavraSecreta: form.palavraSecreta || undefined,
+      pauta: form.pauta || undefined,
     };
     try {
       if (editing) {
@@ -245,6 +280,7 @@ export default function PainelAtasPage() {
       }
       loadMinutes();
       closeModal();
+      toast(publish ? 'Ata publicada.' : 'Rascunho salvo.', 'success');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro');
     } finally {
@@ -253,14 +289,21 @@ export default function PainelAtasPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Excluir esta ata?')) return;
+    const ok = await confirm({
+      title: 'Excluir ata',
+      message: 'Excluir esta ata? Esta ação não pode ser desfeita.',
+      confirmLabel: 'Excluir',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/minutes/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Erro ao excluir');
       loadMinutes();
       setViewing(null);
+      toast('Ata excluída.', 'success');
     } catch {
-      alert('Erro ao excluir');
+      toast('Erro ao excluir.', 'error');
     }
   }
 
@@ -298,9 +341,26 @@ export default function PainelAtasPage() {
           </button>
         )}
       </div>
-      <p className="text-slate-600 mb-6">
-        Atas das reuniões. Salve como rascunho para editar depois ou publique para que todos os membros possam ver e baixar em PDF.
+      <p className="text-slate-600 mb-4">
+        Atas das reuniões. Salve como rascunho para editar depois ou publique para que todos vejam. Quem tem carga de Escrivão, MC, 1ºC ou Admin pode editar e excluir.
       </p>
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <a
+          href="/atareuniao.docx"
+          download="atareuniao.docx"
+          className="inline-flex items-center gap-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium"
+        >
+          Baixar modelo de ata (Word)
+        </a>
+        <a
+          href="/atareuniao.pdf"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium"
+        >
+          Ver modelo (PDF)
+        </a>
+      </div>
 
       {loading ? (
         <p className="text-slate-500">Carregando...</p>
@@ -340,8 +400,8 @@ export default function PainelAtasPage() {
                     <span className="text-sm text-slate-500">{ataLabel(viewing)}</span>
                     <h2 className="text-lg font-bold text-blue-800">{viewing.title}</h2>
                   </div>
-                  {canPost && (viewing.status === 'rascunho' || !viewing.status) && (
-                    <div className="flex gap-2 shrink-0">
+                  {canPost && (
+                    <div className="flex gap-2 shrink-0 flex-wrap">
                       <button
                         onClick={() => openEdit(viewing)}
                         className="px-3 py-1 text-blue-600 hover:bg-blue-50 rounded text-sm"
@@ -354,23 +414,21 @@ export default function PainelAtasPage() {
                       >
                         Excluir
                       </button>
+                      {viewing.status === 'publicada' && (
+                        <a
+                          href={`/api/minutes/${viewing.id}/word`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
+                        >
+                          Baixar em Word
+                        </a>
+                      )}
                     </div>
                   )}
                 </div>
                 <p className="text-slate-500 text-sm mb-4">{formatDate(viewing.createdAt)}</p>
                 <div className="text-slate-700 whitespace-pre-wrap">{viewing.content}</div>
-                {viewing.status === 'publicada' && (
-                  <div className="mt-4 pt-4 border-t border-slate-200">
-                    <a
-                      href={`/api/minutes/${viewing.id}/pdf`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-block px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
-                    >
-                      Baixar PDF
-                    </a>
-                  </div>
-                )}
               </div>
             ) : (
               <div className="bg-slate-50 rounded-lg border border-slate-200 p-8 text-center text-slate-500">
@@ -445,40 +503,40 @@ export default function PainelAtasPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="ourLodge"
-                  checked={form.ourLodge}
-                  onChange={(e) => setForm((f) => ({ ...f, ourLodge: e.target.checked }))}
-                  className="rounded border-slate-300"
-                />
-                <label htmlFor="ourLodge" className="text-slate-700 text-sm">Foi na nossa loja? (Augusta e Respeitável Loja Maçônica Estrela do Guaporé nº 63)</label>
-              </div>
-              {!form.ourLodge && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-slate-700 text-sm mb-1">Local</label>
-                    <input
-                      type="text"
-                      value={form.locationName}
-                      onChange={(e) => setForm((f) => ({ ...f, locationName: e.target.value }))}
-                      placeholder="Nome do local"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-700 text-sm mb-1">Cidade</label>
-                    <input
-                      type="text"
-                      value={form.city}
-                      onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-                      placeholder="Cidade"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                    />
-                  </div>
+              <div>
+                <label className="block text-slate-700 text-sm mb-1">Local da reunião</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={form.ourLodge ? LOCAL_CAPITULO : form.locationName}
+                    onChange={(e) => setForm((f) => ({ ...f, ourLodge: false, locationName: e.target.value }))}
+                    placeholder="Digite o local ou clique em CAPÍTULO"
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, ourLodge: true, locationName: LOCAL_CAPITULO }))}
+                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium whitespace-nowrap"
+                  >
+                    CAPÍTULO
+                  </button>
                 </div>
-              )}
+                <p className="text-slate-500 text-xs mt-1">Preencha manualmente ou use CAPÍTULO para o endereço padrão.</p>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 text-sm mb-1">Gestão</label>
+                <select
+                  value={form.ataGestao}
+                  onChange={(e) => setForm((f) => ({ ...f, ataGestao: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                >
+                  <option value="">Selecione</option>
+                  <option value="1">Gestão 1</option>
+                  <option value="2">Gestão 2</option>
+                </select>
+                <p className="text-slate-500 text-xs mt-1">O escrivão define se é 1ª ou 2ª gestão.</p>
+              </div>
 
               <div className="border-t border-slate-200 pt-4">
                 <label className="block text-slate-700 text-sm mb-2">Puxar presentes da chamada</label>
@@ -501,7 +559,17 @@ export default function PainelAtasPage() {
               </div>
 
               <div>
-                <label className="block text-slate-700 text-sm mb-1">Presidência</label>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <label className="block text-slate-700 text-sm">Presidência</label>
+                  <button
+                    type="button"
+                    onClick={fillPresidencyFromCurrentRoles}
+                    className="text-xs px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded"
+                  >
+                    Preencher com cargos atuais
+                  </button>
+                </div>
+                <p className="text-slate-500 text-xs mb-2">MC, 1º e 2º Conselheiro são preenchidos automaticamente; edite aqui se alguém tiver sido substituído.</p>
                 <div className="grid grid-cols-3 gap-2">
                   <input
                     type="text"
@@ -557,6 +625,43 @@ export default function PainelAtasPage() {
               </div>
 
               <div>
+                <label className="block text-slate-700 text-sm mb-1">Tio do Conselho (líder)</label>
+                <select
+                  value={form.tioConselho}
+                  onChange={(e) => setForm((f) => ({ ...f, tioConselho: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                >
+                  <option value="">Selecione um tio</option>
+                  {form.tiosPresentes.map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+                <p className="text-slate-500 text-xs mt-1">Escolha o tio que aparece como líder do conselho na ata.</p>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 text-sm mb-1">Pauta (tópicos discutidos)</label>
+                <input
+                  type="text"
+                  value={form.pauta}
+                  onChange={(e) => setForm((f) => ({ ...f, pauta: e.target.value }))}
+                  placeholder="Ex.: Aprovação da ata anterior, Palavra do dia, Ordem do dia (separados por vírgula)"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 text-sm mb-1">Palavra secreta (opcional)</label>
+                <input
+                  type="text"
+                  value={form.palavraSecreta}
+                  onChange={(e) => setForm((f) => ({ ...f, palavraSecreta: e.target.value }))}
+                  placeholder="Apenas em reunião ritualística"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                />
+              </div>
+
+              <div>
                 <label className="block text-slate-700 text-sm mb-1">Os trabalhos no grau... (ex.: grau iniciático, cerimônia pública, reunião administrativa)</label>
                 <input
                   type="text"
@@ -579,12 +684,13 @@ export default function PainelAtasPage() {
               </div>
 
               <div>
-                <label className="block text-slate-700 text-sm mb-1">Conteúdo / Acontecimentos da reunião *</label>
+                <label className="block text-slate-700 text-sm mb-1">Bem da Ordem (descrição da reunião) *</label>
                 <textarea
                   required
                   rows={8}
                   value={form.content}
                   onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
+                  placeholder="Descrição completa dos acontecimentos da reunião. Este texto preenche a tag {bemdaOrdem} no Word."
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg resize-none"
                 />
               </div>

@@ -68,7 +68,11 @@ CREATE TABLE IF NOT EXISTS minutes (
   presiding_2c TEXT,
   tios_presentes JSONB DEFAULT '[]',
   trabalhos_texto TEXT,
-  escrivao_name TEXT
+  escrivao_name TEXT,
+  ata_gestao TEXT,
+  tio_conselho TEXT,
+  palavra_secreta TEXT,
+  pauta TEXT
 );
 
 -- Tabela de calendário

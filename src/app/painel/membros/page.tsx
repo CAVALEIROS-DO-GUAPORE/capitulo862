@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
+import { useDialogs } from '@/components/DialogsProvider';
 import type { Member, MemberCategory, MemberAdditionalRole } from '@/types';
 
 const CATEGORIES = [
@@ -20,6 +21,7 @@ const ROLES_BY_CATEGORY: Record<string, string[]> = {
 };
 
 export default function PainelMembrosPage() {
+  const { confirm, toast } = useDialogs();
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -195,13 +197,20 @@ export default function PainelMembrosPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Excluir este membro?')) return;
+    const ok = await confirm({
+      title: 'Excluir membro',
+      message: 'Excluir este membro?',
+      confirmLabel: 'Excluir',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/members/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Erro ao excluir');
       loadMembers();
+      toast('Membro excluído.', 'success');
     } catch {
-      alert('Erro ao excluir');
+      toast('Erro ao excluir.', 'error');
     }
   }
 

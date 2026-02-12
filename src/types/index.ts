@@ -84,6 +84,14 @@ export interface InternalMinutes {
   tiosPresentes?: string[];
   trabalhosTexto?: string;
   escrivaoName?: string;
+  /** Gestão 1 ou 2 (definido pelo escrivão ao preencher a ata). */
+  ataGestao?: string;
+  /** Nome do tio escolhido como "líder" do conselho na ata. */
+  tioConselho?: string;
+  /** Palavra secreta (opcional; apenas reunião ritualística). */
+  palavraSecreta?: string;
+  /** Tópicos discutidos na reunião, separados por vírgula. */
+  pauta?: string;
 }
 
 export interface FinanceEntry {
