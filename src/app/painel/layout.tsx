@@ -215,12 +215,12 @@ export default function PainelLayout({
             </button>
           </div>
         </div>
-        <nav className="max-w-6xl mx-auto px-4 flex gap-6 overflow-x-auto py-2 items-center">
+        <nav className="max-w-6xl mx-auto px-4 flex gap-4 sm:gap-6 overflow-x-auto overflow-y-hidden py-3 sm:py-2 items-center min-h-[44px] [scrollbar-width:thin]">
           {links.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`text-sm whitespace-nowrap ${
+              className={`text-sm whitespace-nowrap py-2 -my-2 px-1 rounded hover:bg-slate-100 active:bg-slate-200 ${
                 pathname === link.href
                   ? 'text-blue-600 font-semibold'
                   : 'text-slate-600 hover:text-blue-600'

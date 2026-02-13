@@ -26,9 +26,14 @@ export default function LoginPage() {
       });
 
       if (authError) {
-        setError(authError.message === 'Invalid login credentials'
-          ? 'Email ou senha incorretos.'
-          : authError.message);
+        const msg = authError.message;
+        if (msg === 'Invalid login credentials') {
+          setError('Email ou senha incorretos.');
+        } else if (msg === 'Failed to fetch' || msg.includes('fetch') || msg.includes('network')) {
+          setError('Não foi possível conectar ao servidor. Verifique sua internet e se o painel está configurado (Supabase).');
+        } else {
+          setError(msg);
+        }
         return;
       }
 
@@ -79,7 +84,12 @@ export default function LoginPage() {
       }
       router.refresh();
     } catch (err) {
-      setError('Erro ao fazer login. Tente novamente.');
+      const msg = err instanceof Error ? err.message : '';
+      if (msg === 'Failed to fetch' || msg.includes('fetch') || msg.includes('network')) {
+        setError('Não foi possível conectar ao servidor. Verifique sua internet e se o painel está configurado (Supabase).');
+      } else {
+        setError('Erro ao fazer login. Tente novamente.');
+      }
     } finally {
       setLoading(false);
     }

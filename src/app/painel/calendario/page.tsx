@@ -219,18 +219,18 @@ export default function PainelCalendarioPage() {
         Eventos do capítulo e atividades mensais obrigatórias (edital).
       </p>
 
-      <div className="flex gap-2 border-b border-slate-200 mb-6">
+      <div className="flex gap-0 sm:gap-2 border-b border-slate-200 mb-6">
         <button
           type="button"
           onClick={() => setTab(TAB_EVENTO)}
-          className={`px-4 py-2 rounded-t-lg text-sm font-medium ${tab === TAB_EVENTO ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+          className={`flex-1 sm:flex-none min-w-0 px-3 sm:px-4 py-3 sm:py-2 rounded-t-lg text-sm font-medium text-center transition-colors ${tab === TAB_EVENTO ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
         >
           Eventos
         </button>
         <button
           type="button"
           onClick={() => setTab(TAB_ATIVIDADES)}
-          className={`px-4 py-2 rounded-t-lg text-sm font-medium ${tab === TAB_ATIVIDADES ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+          className={`flex-1 sm:flex-none min-w-0 px-3 sm:px-4 py-3 sm:py-2 rounded-t-lg text-sm font-medium text-center transition-colors ${tab === TAB_ATIVIDADES ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
         >
           Atividades mensais
         </button>

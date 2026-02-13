@@ -16,8 +16,8 @@ export default function PainelPage() {
   }, []);
 
   const cards = [
-    { href: '/painel/membros', label: 'Membros', desc: 'Gerir membros e cargos' },
-    { href: '/painel/noticias', label: 'Notícias', desc: 'Publicar notícias' },
+    { href: '/painel/membros', label: 'Membros', desc: 'Ver membros' },
+    { href: '/painel/noticias', label: 'Notícias', desc: 'Ver notícias' },
     { href: '/painel/calendario', label: 'Calendário', desc: 'Eventos e ritualísticas' },
     { href: '/painel/atas', label: 'Atas', desc: 'Atas internas' },
     { href: '/painel/financas', label: 'Finanças', desc: 'Caixa e prestação de contas' },
