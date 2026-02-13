@@ -29,10 +29,10 @@ export async function POST(request: NextRequest) {
   try {
     const admin = createAdminClient();
 
-    // Buscar avatar atual para excluir depois
+    // Buscar avatar atual e nome para excluir arquivo antigo e sincronizar com membros
     const { data: profile } = await admin
       .from('profiles')
-      .select('avatar_url')
+      .select('avatar_url, name')
       .eq('id', user.id)
       .single();
 
@@ -77,11 +77,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
-    // Replicar a mesma foto no cadastro de membros (página pública /membros) quando o membro estiver vinculado a este usuário
-    await admin
+    // Replicar a mesma foto no cadastro de membros (página pública /membros)
+    const { data: updatedByUser } = await admin
       .from('members')
       .update({ photo: publicUrl })
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .select('id');
+
+    // Se nenhum membro está vinculado por user_id, tenta atualizar por nome (membro sem vínculo ainda)
+    const profileName = profile?.name?.trim();
+    if ((!updatedByUser || updatedByUser.length === 0) && profileName) {
+      const { data: membersByName } = await admin
+        .from('members')
+        .select('id')
+        .is('user_id', null)
+        .ilike('name', profileName);
+      if (membersByName?.length) {
+        const ids = membersByName.map((m: { id: string }) => m.id);
+        for (const id of ids) {
+          await admin.from('members').update({ photo: publicUrl, user_id: user.id }).eq('id', id);
+        }
+      }
+    }
 
     return NextResponse.json({ avatarUrl: publicUrl });
   } catch (err) {

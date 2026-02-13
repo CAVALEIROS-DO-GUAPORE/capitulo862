@@ -154,10 +154,7 @@ export async function GET(request: NextRequest) {
       if (!worksheet) continue;
 
       const ext = getImageExtension(buf);
-      const imageId = workbook.addImage({
-        buffer: buf,
-        extension: ext,
-      });
+      const imageId = workbook.addImage({ buffer: buf as never, extension: ext });
       worksheet.addImage(imageId, {
         tl: { col: col - 1, row: row - 1 },
         ext: { width: IMAGE_WIDTH, height: IMAGE_HEIGHT },
@@ -166,13 +163,14 @@ export async function GET(request: NextRequest) {
 
     const out = await workbook.xlsx.writeBuffer();
     const buffer = Buffer.isBuffer(out) ? out : Buffer.from(out as ArrayBuffer);
+    const body = new Uint8Array(buffer);
     const filename = 'relatorio_tesouraria_geral.xlsx';
-    return new NextResponse(buffer, {
+    return new NextResponse(body as unknown as BodyInit, {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Length': String(buffer.length),
+        'Content-Length': String(body.length),
       },
     });
   } catch (err) {

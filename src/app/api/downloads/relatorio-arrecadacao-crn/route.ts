@@ -39,14 +39,14 @@ export async function GET(request: NextRequest) {
       nome_tesoureiro: tesoureiro.data?.name ?? '',
       nome_pcc: pcc.data?.name ?? '',
     });
-
+    const body: Uint8Array = Buffer.isBuffer(buffer) ? new Uint8Array(buffer) : new Uint8Array(buffer as ArrayBuffer);
     const filename = `${TEMPLATE_BASE}.xlsx`;
-    return new NextResponse(buffer, {
+    return new NextResponse(body as unknown as BodyInit, {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Length': String(buffer.length),
+        'Content-Length': String(body.length),
       },
     });
   } catch (err) {

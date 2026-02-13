@@ -112,7 +112,8 @@ export async function GET(request: NextRequest) {
       const buf = await fetchImageBuffer(url);
       if (buf && buf.length > 0) {
         const ext = getImageExtension(buf);
-        const imageId = workbook.addImage({ buffer: buf, extension: ext });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const imageId = workbook.addImage({ buffer: buf as any, extension: ext });
         for (const { sheetName, row, col } of imageCells) {
           const worksheet = workbook.getWorksheet(sheetName);
           if (worksheet) {
@@ -127,13 +128,14 @@ export async function GET(request: NextRequest) {
 
     const out = await workbook.xlsx.writeBuffer();
     const buffer = Buffer.isBuffer(out) ? out : Buffer.from(out as ArrayBuffer);
+    const body = new Uint8Array(buffer);
     const filename = 'relatorio_expedientes_e_enviados.xlsx';
-    return new NextResponse(buffer, {
+    return new NextResponse(body as unknown as BodyInit, {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Length': String(buffer.length),
+        'Content-Length': String(body.length),
       },
     });
   } catch (err) {

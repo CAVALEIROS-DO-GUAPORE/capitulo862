@@ -33,7 +33,7 @@ export async function GET(request: Request) {
       chapterName: `Cap. ${CHAPTER_NAME} Nº ${CHAPTER_NUMBER}`,
       logoPngBytes,
     });
-    return new NextResponse(pdfBytes, {
+    return new NextResponse(pdfBytes as unknown as BodyInit, {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="extrato-financeiro.pdf"`,
