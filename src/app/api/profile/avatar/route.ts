@@ -77,6 +77,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
+    // Replicar a mesma foto no cadastro de membros (página pública /membros) quando o membro estiver vinculado a este usuário
+    await admin
+      .from('members')
+      .update({ photo: publicUrl })
+      .eq('user_id', user.id);
+
     return NextResponse.json({ avatarUrl: publicUrl });
   } catch (err) {
     return NextResponse.json(

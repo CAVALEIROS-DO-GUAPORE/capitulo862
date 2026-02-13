@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { AlertsBanner } from '@/components/AlertsBanner';
 
 interface SessionUser {
   id?: string;
@@ -164,9 +165,8 @@ export default function PainelLayout({
     { href: '/painel/membros', label: 'Membros' },
     { href: '/painel/noticias', label: 'Notícias' },
     { href: '/painel/calendario', label: 'Calendário' },
-    { href: '/painel/chamada', label: 'Chamada' },
-    { href: '/painel/atas', label: 'Atas' },
     { href: '/painel/financas', label: 'Finanças' },
+    ...(user ? [{ href: '/painel/secretaria', label: 'Secretaria' }] : []),
   ];
 
   if (loading || !user) {
@@ -215,7 +215,7 @@ export default function PainelLayout({
             </button>
           </div>
         </div>
-        <nav className="max-w-6xl mx-auto px-4 flex gap-6 overflow-x-auto py-2">
+        <nav className="max-w-6xl mx-auto px-4 flex gap-6 overflow-x-auto py-2 items-center">
           {links.map((link) => (
             <Link
               key={link.href}
@@ -231,6 +231,7 @@ export default function PainelLayout({
           ))}
         </nav>
       </header>
+      <AlertsBanner userRole={user?.role} />
       <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8">
         {children}
       </div>

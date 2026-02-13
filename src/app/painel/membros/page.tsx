@@ -33,6 +33,7 @@ export default function PainelMembrosPage() {
     category: MemberCategory;
     order: number;
     phone: string;
+    identifier: number;
     additionalRoles: MemberAdditionalRole[];
   }>({
     name: '',
@@ -40,6 +41,7 @@ export default function PainelMembrosPage() {
     category: 'demolays',
     order: 0,
     phone: '',
+    identifier: 0,
     additionalRoles: [],
   });
   const [saving, setSaving] = useState(false);
@@ -80,7 +82,7 @@ export default function PainelMembrosPage() {
   function openAdd() {
     setEditing(null);
     setViewing(null);
-    setForm({ name: '', role: '', category: 'demolays', order: members.length + 1, phone: '', additionalRoles: [] });
+    setForm({ name: '', role: '', category: 'demolays', order: members.length + 1, phone: '', identifier: 0, additionalRoles: [] });
     setModal('add');
     setError('');
   }
@@ -94,6 +96,7 @@ export default function PainelMembrosPage() {
       category: m.category,
       order: m.order,
       phone: m.phone || '',
+      identifier: m.identifier ?? 0,
       additionalRoles: m.additionalRoles?.slice() ?? [],
     });
     setModal('edit');
@@ -162,6 +165,7 @@ export default function PainelMembrosPage() {
           category: form.category,
           order: form.order,
           phone: form.phone,
+          identifier: form.identifier,
           additionalRoles: form.additionalRoles.filter((r) => r.role.trim()),
         }),
         });
@@ -179,6 +183,7 @@ export default function PainelMembrosPage() {
           category: form.category,
           order: form.order,
           phone: form.phone,
+          identifier: form.identifier,
           additionalRoles: form.additionalRoles.filter((r) => r.role.trim()),
         }),
         });
@@ -239,6 +244,7 @@ export default function PainelMembrosPage() {
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
                 <th className="py-3 px-4 text-slate-600 font-medium w-12">Foto</th>
+                <th className="py-3 px-4 text-slate-600 font-medium w-16">ID</th>
                 <th className="py-3 px-4 text-slate-600 font-medium">Nome</th>
                 <th className="py-3 px-4 text-slate-600 font-medium">Cargo</th>
                 <th className="py-3 px-4 text-slate-600 font-medium">Categoria</th>
@@ -259,6 +265,7 @@ export default function PainelMembrosPage() {
                       )}
                     </div>
                   </td>
+                  <td className="py-3 px-4 text-slate-600 tabular-nums">{m.identifier ?? 0}</td>
                   <td className="py-3 px-4 text-slate-700">{m.name}</td>
                   <td className="py-3 px-4 text-blue-800 font-medium">{memberRolesDisplay(m)}</td>
                   <td className="py-3 px-4 text-slate-600">{memberCategoriesDisplay(m)}</td>
@@ -316,6 +323,11 @@ export default function PainelMembrosPage() {
                 <p className="font-semibold text-slate-800 text-lg">{viewing.name}</p>
                 <p className="text-blue-800 font-medium">{memberRolesDisplay(viewing)}</p>
                 <p className="text-slate-600 text-sm">{memberCategoriesDisplay(viewing)}</p>
+                {(viewing.identifier ?? 0) !== 0 && (
+                  <p className="text-slate-600 text-sm">
+                    <span className="text-slate-500">ID:</span> {viewing.identifier}
+                  </p>
+                )}
                 {viewing.phone && (
                   <p className="text-slate-600 text-sm">
                     <span className="text-slate-500">Telefone:</span> {viewing.phone}
@@ -416,6 +428,18 @@ export default function PainelMembrosPage() {
                     + Adicionar outra categoria/cargo
                   </button>
                 )}
+              </div>
+              <div>
+                <label className="block text-slate-700 text-sm mb-1">ID (número identificador)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={form.identifier}
+                  onChange={(e) => setForm((f) => ({ ...f, identifier: parseInt(e.target.value, 10) || 0 }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  placeholder="0"
+                />
+                <p className="text-slate-500 text-xs mt-1">Use 0 se ainda não tiver número definido.</p>
               </div>
               <div>
                 <label className="block text-slate-700 text-sm mb-1">Telefone (opcional)</label>

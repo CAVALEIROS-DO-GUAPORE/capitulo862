@@ -2,9 +2,19 @@ import { NextResponse } from 'next/server';
 import { getFinanceEntries, insertFinanceEntry } from '@/lib/data';
 import type { FinanceEntry } from '@/types';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const entries = await getFinanceEntries();
+    const { searchParams } = new URL(request.url);
+    const ano = searchParams.get('ano');
+    const mes = searchParams.get('mes');
+    const data = searchParams.get('data');
+    const opts: { ano?: number; mes?: number; data?: string } = {};
+    if (data) opts.data = String(data).slice(0, 10);
+    else if (ano) {
+      opts.ano = parseInt(ano, 10);
+      if (mes) opts.mes = parseInt(mes, 10);
+    }
+    const entries = await getFinanceEntries(opts);
     return NextResponse.json(entries);
   } catch (err) {
     return NextResponse.json({ error: 'Erro ao carregar movimentações' }, { status: 500 });

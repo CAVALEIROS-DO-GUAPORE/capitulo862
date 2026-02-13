@@ -20,6 +20,9 @@ export default function PainelFinancasPage() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [filtroAno, setFiltroAno] = useState<string>('');
+  const [filtroMes, setFiltroMes] = useState<string>('');
+  const [filtroData, setFiltroData] = useState<string>('');
 
   const canManage = user?.role && ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'tesoureiro'].includes(user.role);
 
@@ -33,14 +36,22 @@ export default function PainelFinancasPage() {
   }, []);
 
   const loadEntries = useCallback(function loadEntries() {
-    fetch('/api/finance')
+    const params = new URLSearchParams();
+    if (filtroData) params.set('data', filtroData);
+    else if (filtroAno) {
+      params.set('ano', filtroAno);
+      if (filtroMes) params.set('mes', filtroMes);
+    }
+    const qs = params.toString();
+    fetch(`/api/finance${qs ? `?${qs}` : ''}`)
       .then((r) => r.json())
       .then((data) => setEntries(Array.isArray(data) ? data : []))
       .catch(() => setEntries([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [filtroAno, filtroMes, filtroData]);
 
   useEffect(() => {
+    setLoading(true);
     loadEntries();
   }, [loadEntries]);
 
@@ -152,21 +163,79 @@ export default function PainelFinancasPage() {
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
+  const anos = (() => {
+    const y = new Date().getFullYear();
+    return Array.from({ length: 8 }, (_, i) => y - i);
+  })();
+  const meses = [
+    { value: '', label: 'Todos' },
+    { value: '1', label: 'Jan' }, { value: '2', label: 'Fev' }, { value: '3', label: 'Mar' },
+    { value: '4', label: 'Abr' }, { value: '5', label: 'Mai' }, { value: '6', label: 'Jun' },
+    { value: '7', label: 'Jul' }, { value: '8', label: 'Ago' }, { value: '9', label: 'Set' },
+    { value: '10', label: 'Out' }, { value: '11', label: 'Nov' }, { value: '12', label: 'Dez' },
+  ];
+  const pdfUrl = (() => {
+    const params = new URLSearchParams();
+    if (filtroData) params.set('data', filtroData);
+    else if (filtroAno) {
+      params.set('ano', filtroAno);
+      if (filtroMes) params.set('mes', filtroMes);
+    }
+    const qs = params.toString();
+    return `/api/finance/extrato-pdf${qs ? `?${qs}` : ''}`;
+  })();
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold text-blue-800">Finanças</h1>
-        {canManage && (
-          <button
-            onClick={openAdd}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={filtroAno}
+            onChange={(e) => { setFiltroAno(e.target.value); setFiltroMes(''); setFiltroData(''); }}
+            className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
           >
-            + Lançar Movimentação
-          </button>
-        )}
+            <option value="">Todos os anos</option>
+            {anos.map((a) => (
+              <option key={a} value={a}>{a}</option>
+            ))}
+          </select>
+          <select
+            value={filtroMes}
+            onChange={(e) => setFiltroMes(e.target.value)}
+            disabled={!filtroAno}
+            className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
+          >
+            {meses.map((m) => (
+              <option key={m.value || 't'} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+          <input
+            type="date"
+            value={filtroData}
+            onChange={(e) => { setFiltroData(e.target.value); setFiltroAno(''); setFiltroMes(''); }}
+            className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
+            title="Filtrar por data exata"
+          />
+          <a
+            href={pdfUrl}
+            download="extrato-financeiro.pdf"
+            className="px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-sm font-medium"
+          >
+            Gerar extrato PDF
+          </a>
+          {canManage && (
+            <button
+              onClick={openAdd}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
+            >
+              + Lançar Movimentação
+            </button>
+          )}
+        </div>
       </div>
       <p className="text-slate-600 mb-6">
-        Entradas e saídas financeiras do capítulo.
+        Entradas e saídas financeiras do capítulo. Filtre por ano, mês ou data e gere o extrato em PDF.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">

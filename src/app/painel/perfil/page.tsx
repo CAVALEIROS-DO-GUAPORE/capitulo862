@@ -379,6 +379,9 @@ export default function PerfilPage() {
               onChange={(e) => setForm((f) => ({ ...f, birthDate: e.target.value }))}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg"
             />
+            <p className="text-slate-500 text-xs mt-1">
+              No dia do seu aniversário, o painel exibirá um alerta para que os irmãos possam parabenizá-lo.
+            </p>
           </div>
           {error && <p className="text-red-600 text-sm">{error}</p>}
           {success && <p className="text-green-600 text-sm">{success}</p>}

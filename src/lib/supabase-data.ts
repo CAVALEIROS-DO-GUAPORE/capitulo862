@@ -9,6 +9,8 @@ function parseAdditionalRoles(raw: unknown): MemberAdditionalRole[] {
 }
 
 function toMember(row: Record<string, unknown>): Member {
+  const rawId = row.identifier ?? row.numero_id;
+  const identifier = rawId != null && rawId !== '' ? Number(rawId) : 0;
   return {
     id: String(row.id),
     name: String(row.name),
@@ -18,6 +20,7 @@ function toMember(row: Record<string, unknown>): Member {
     order: Number(row.order ?? 0),
     userId: row.user_id ? String(row.user_id) : undefined,
     phone: row.phone ? String(row.phone) : undefined,
+    identifier: Number.isNaN(identifier) ? 0 : identifier,
     additionalRoles: parseAdditionalRoles(row.additional_roles),
   };
 }
@@ -74,6 +77,10 @@ function toCalendarEvent(row: Record<string, unknown>): CalendarEvent {
     description: row.description ? String(row.description) : undefined,
     date: String(row.date).slice(0, 10),
     type: (row.type as CalendarEvent['type']) || 'outro',
+    category: (row.category as CalendarEvent['category']) || 'evento',
+    startTime: row.start_time ? String(row.start_time) : undefined,
+    dateEnd: row.date_end ? String(row.date_end).slice(0, 10) : undefined,
+    enviado: row.enviado === true,
   };
 }
 
@@ -95,6 +102,9 @@ function toRollCall(row: Record<string, unknown>): RollCall {
     attendance: (row.attendance as Record<string, boolean>) || {},
     createdAt: String(row.created_at ?? ''),
     authorId: row.author_id ? String(row.author_id) : 'system',
+    gestao: row.gestao != null ? String(row.gestao) : undefined,
+    tipoReuniao: row.tipo_reuniao != null ? String(row.tipo_reuniao) : undefined,
+    breveDescricao: row.breve_descricao != null ? String(row.breve_descricao) : undefined,
   };
 }
 
@@ -136,6 +146,7 @@ export async function insertMember(m: Omit<Member, 'id'>): Promise<Member> {
     order: m.order,
     user_id: m.userId ?? null,
     phone: m.phone ?? null,
+    identifier: m.identifier != null ? m.identifier : 0,
     additional_roles: Array.isArray(m.additionalRoles) ? m.additionalRoles : [],
   };
   const { data, error } = await supabase.from('members').insert(row).select('*').single();
@@ -153,6 +164,7 @@ export async function updateMember(id: string, partial: Partial<Member>): Promis
   if (partial.order !== undefined) row.order = partial.order;
   if (partial.userId !== undefined) row.user_id = partial.userId;
   if (partial.phone !== undefined) row.phone = partial.phone;
+  if (partial.identifier !== undefined) row.identifier = partial.identifier;
   if (partial.additionalRoles !== undefined) row.additional_roles = partial.additionalRoles;
   const { data, error } = await supabase.from('members').update(row).eq('id', id).select('*').single();
   if (error) throw error;
@@ -315,7 +327,16 @@ export async function getCalendarEvents(): Promise<CalendarEvent[]> {
 
 export async function insertCalendarEvent(e: Omit<CalendarEvent, 'id'>): Promise<CalendarEvent> {
   const supabase = createAdminClient();
-  const row = { title: e.title, description: e.description ?? null, date: e.date, type: e.type ?? 'outro' };
+  const row: Record<string, unknown> = {
+    title: e.title,
+    description: e.description ?? null,
+    date: e.date,
+    type: e.type ?? 'outro',
+    category: e.category ?? 'evento',
+    start_time: e.startTime ?? null,
+    date_end: e.dateEnd ?? null,
+    enviado: e.enviado ?? false,
+  };
   const { data, error } = await supabase.from('calendar_events').insert(row).select('*').single();
   if (error) throw error;
   return toCalendarEvent(data);
@@ -328,6 +349,10 @@ export async function updateCalendarEvent(id: string, partial: Partial<CalendarE
   if (partial.description !== undefined) row.description = partial.description;
   if (partial.date !== undefined) row.date = partial.date;
   if (partial.type !== undefined) row.type = partial.type;
+  if (partial.category !== undefined) row.category = partial.category;
+  if (partial.startTime !== undefined) row.start_time = partial.startTime;
+  if (partial.dateEnd !== undefined) row.date_end = partial.dateEnd;
+  if (partial.enviado !== undefined) row.enviado = partial.enviado;
   const { data, error } = await supabase.from('calendar_events').update(row).eq('id', id).select('*').single();
   if (error) throw error;
   return toCalendarEvent(data);
@@ -339,10 +364,62 @@ export async function deleteCalendarEvent(id: string): Promise<void> {
   if (error) throw error;
 }
 
-// ---------- Finance ----------
-export async function getFinanceEntries(): Promise<FinanceEntry[]> {
+/** Próximo evento (category = evento, date >= hoje), ordenado por data e start_time */
+export async function getNextCalendarEvent(): Promise<CalendarEvent | null> {
   const supabase = createAdminClient();
-  const { data, error } = await supabase.from('finance_entries').select('*').order('date', { ascending: false });
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from('calendar_events')
+    .select('*')
+    .eq('category', 'evento')
+    .gte('date', today)
+    .order('date', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? toCalendarEvent(data) : null;
+}
+
+/** Atividades mensais não enviadas com date_end >= hoje (para alertas de rank) */
+export async function getUpcomingCalendarActivities(): Promise<CalendarEvent[]> {
+  const supabase = createAdminClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from('calendar_events')
+    .select('*')
+    .eq('category', 'atividades_mensais')
+    .eq('enviado', false)
+    .gte('date_end', today)
+    .order('date_end', { ascending: true });
+  if (error) throw error;
+  return (data || []).map(toCalendarEvent);
+}
+
+// ---------- Finance ----------
+export interface GetFinanceEntriesOptions {
+  ano?: number;
+  mes?: number;
+  data?: string; // YYYY-MM-DD exato
+}
+
+export async function getFinanceEntries(opts?: GetFinanceEntriesOptions): Promise<FinanceEntry[]> {
+  const supabase = createAdminClient();
+  let query = supabase.from('finance_entries').select('*');
+  if (opts?.data) {
+    query = query.eq('date', opts.data);
+  } else if (opts?.ano != null) {
+    const start = `${opts.ano}-01-01`;
+    const end = `${opts.ano}-12-31`;
+    if (opts.mes != null) {
+      const m = String(opts.mes).padStart(2, '0');
+      const lastDay = new Date(opts.ano, opts.mes, 0).getDate();
+      const endMonth = `${opts.ano}-${m}-${String(lastDay).padStart(2, '0')}`;
+      query = query.gte('date', `${opts.ano}-${m}-01`).lte('date', endMonth);
+    } else {
+      query = query.gte('date', start).lte('date', end);
+    }
+  }
+  const { data, error } = await query.order('date', { ascending: false });
   if (error) throw error;
   return (data || []).map(toFinanceEntry);
 }
@@ -388,10 +465,32 @@ export async function getRollCallByDate(date: string): Promise<RollCall | null> 
   return data ? toRollCall(data) : null;
 }
 
-export async function upsertRollCall(date: string, attendance: Record<string, boolean>): Promise<RollCall> {
+export interface UpsertRollCallOptions {
+  date: string;
+  attendance: Record<string, boolean>;
+  gestao?: string;
+  tipoReuniao?: string;
+  breveDescricao?: string;
+}
+
+export async function upsertRollCall(
+  dateOrOptions: string | UpsertRollCallOptions,
+  attendance?: Record<string, boolean>
+): Promise<RollCall> {
   const supabase = createAdminClient();
+  const opts = typeof dateOrOptions === 'string'
+    ? { date: dateOrOptions, attendance: attendance ?? {} }
+    : dateOrOptions;
+  const { date, attendance: att, gestao, tipoReuniao, breveDescricao } = opts;
   const existing = await getRollCallByDate(date);
-  const row = { date, attendance, author_id: null };
+  const row: Record<string, unknown> = {
+    date,
+    attendance: att ?? {},
+    author_id: null,
+    gestao: gestao ?? null,
+    tipo_reuniao: tipoReuniao ?? null,
+    breve_descricao: breveDescricao ?? null,
+  };
   if (existing) {
     const { data, error } = await supabase.from('roll_calls').update(row).eq('id', existing.id).select('*').single();
     if (error) throw error;
@@ -400,6 +499,24 @@ export async function upsertRollCall(date: string, attendance: Record<string, bo
   const { data, error } = await supabase.from('roll_calls').insert(row).select('*').single();
   if (error) throw error;
   return toRollCall(data);
+}
+
+/** Roll calls filtrados por ano e gestão (para relatório único). */
+export async function getRollCallsByYearAndGestao(year: number, gestao: string): Promise<RollCall[]> {
+  const supabase = createAdminClient();
+  const start = `${year}-01-01`;
+  const end = `${year}-12-31`;
+  const { data, error } = await supabase
+    .from('roll_calls')
+    .select('*')
+    .gte('date', start)
+    .lte('date', end)
+    .order('date', { ascending: true });
+  if (error) throw error;
+  const list = (data || []).map(toRollCall);
+  const gestaoNorm = String(gestao || '').trim();
+  if (!gestaoNorm) return list;
+  return list.filter((rc) => String(rc.gestao || '').trim() === gestaoNorm);
 }
 
 // ---------- Candidatos ----------

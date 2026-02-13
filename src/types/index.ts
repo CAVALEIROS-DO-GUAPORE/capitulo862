@@ -35,6 +35,8 @@ export interface Member {
   order: number;
   userId?: string;
   phone?: string;
+  /** Número identificador do membro (ID). Use 0 se ainda não definido. */
+  identifier?: number;
   /** Outras categorias/cargos (ex.: Presidente dos Sêniores + Consultor) — não duplica a pessoa */
   additionalRoles?: MemberAdditionalRole[];
 }
@@ -58,6 +60,10 @@ export interface RollCall {
   attendance: Record<string, boolean>;
   createdAt: string;
   authorId: string;
+  /** Gestão (1 ou 2) para filtrar relatório por ano/gestão */
+  gestao?: string;
+  tipoReuniao?: string;
+  breveDescricao?: string;
 }
 
 export interface InternalMinutes {
@@ -105,12 +111,23 @@ export interface FinanceEntry {
 
 export type CalendarEventType = 'ritualistica' | 'evento' | 'reuniao' | 'outro';
 
+/** Categoria no calendário: evento (normal) ou atividades_mensais (edital) */
+export type CalendarEventCategory = 'evento' | 'atividades_mensais';
+
 export interface CalendarEvent {
   id: string;
   title: string;
   description?: string;
   date: string;
   type: CalendarEventType;
+  /** 'evento' = calendário normal; 'atividades_mensais' = atividade obrigatória com prazo */
+  category?: CalendarEventCategory;
+  /** Horário do evento (ex: "19h") */
+  startTime?: string;
+  /** Para atividades_mensais: último dia para enviar (YYYY-MM-DD) */
+  dateEnd?: string;
+  /** Para atividades_mensais: se já foi enviada */
+  enviado?: boolean;
 }
 
 export interface MembershipCandidate {

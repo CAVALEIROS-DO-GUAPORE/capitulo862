@@ -24,7 +24,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, role, category, order, photo, phone } = body;
+    const { name, role, category, order, photo, phone, identifier } = body;
 
     const members = await getMembers();
     if (!members.find((m) => m.id === id)) {
@@ -38,6 +38,10 @@ export async function PATCH(
     if (order !== undefined) partial.order = Number(order);
     if (photo !== undefined) partial.photo = photo || undefined;
     if (phone !== undefined) partial.phone = phone ? String(phone).trim() : undefined;
+    if (identifier !== undefined && identifier !== null && identifier !== '') {
+      const idNum = Number(identifier);
+      partial.identifier = Number.isNaN(idNum) ? 0 : idNum;
+    }
     if (body.additionalRoles !== undefined) {
       partial.additionalRoles = Array.isArray(body.additionalRoles)
         ? body.additionalRoles

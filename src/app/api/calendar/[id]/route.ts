@@ -9,7 +9,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { title, description, date, type } = body;
+    const { title, description, date, type, category, startTime, dateEnd, enviado } = body;
 
     const events = await getCalendarEvents();
     if (!events.find((e) => e.id === id)) {
@@ -19,8 +19,12 @@ export async function PATCH(
     const partial: Partial<CalendarEvent> = {};
     if (title !== undefined) partial.title = String(title).trim();
     if (description !== undefined) partial.description = String(description).trim();
-    if (date !== undefined) partial.date = String(date);
+    if (date !== undefined) partial.date = String(date).slice(0, 10);
     if (type !== undefined) partial.type = ['ritualistica', 'evento', 'reuniao', 'outro'].includes(type) ? type : undefined;
+    if (category !== undefined) partial.category = category === 'atividades_mensais' ? 'atividades_mensais' : 'evento';
+    if (startTime !== undefined) partial.startTime = String(startTime).trim() || undefined;
+    if (dateEnd !== undefined) partial.dateEnd = dateEnd ? String(dateEnd).slice(0, 10) : undefined;
+    if (enviado !== undefined) partial.enviado = Boolean(enviado);
 
     const updated = await updateCalendarEvent(id, partial);
     return NextResponse.json(updated);

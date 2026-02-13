@@ -66,6 +66,12 @@ export default function HomePage() {
             >
               Últimas Notícias
             </Link>
+            <Link
+              href="/painel/secretaria"
+              className="px-6 py-3 border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg font-bold transition-colors"
+            >
+              Secretaria
+            </Link>
           </div>
         </div>
       </section>

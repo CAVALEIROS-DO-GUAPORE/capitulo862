@@ -1,12 +1,27 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 export default function PainelPage() {
+  const [user, setUser] = useState<{ role?: string } | null>(null);
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('dm_user');
+    if (stored) {
+      try {
+        setUser(JSON.parse(stored));
+      } catch {}
+    }
+  }, []);
+
   const cards = [
     { href: '/painel/membros', label: 'Membros', desc: 'Gerir membros e cargos' },
     { href: '/painel/noticias', label: 'Notícias', desc: 'Publicar notícias' },
     { href: '/painel/calendario', label: 'Calendário', desc: 'Eventos e ritualísticas' },
     { href: '/painel/atas', label: 'Atas', desc: 'Atas internas' },
     { href: '/painel/financas', label: 'Finanças', desc: 'Caixa e prestação de contas' },
+    ...(user ? [{ href: '/painel/secretaria', label: 'Secretaria', desc: 'Chamadas, downloads e relatórios' }] : []),
   ];
 
   return (

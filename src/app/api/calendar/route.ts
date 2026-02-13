@@ -25,7 +25,7 @@ function normalizeDate(dateStr: unknown): string {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, description, date, type } = body;
+    const { title, description, date, type, category, startTime, dateEnd, enviado } = body;
 
     if (!title || !date) {
       return NextResponse.json({ error: 'Título e data são obrigatórios' }, { status: 400 });
@@ -36,11 +36,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Data inválida. Use o formato DD/MM/AAAA ou AAAA-MM-DD.' }, { status: 400 });
     }
 
+    const cat = category === 'atividades_mensais' ? 'atividades_mensais' : 'evento';
+    const dateEndNorm = dateEnd ? (normalizeDate(dateEnd) || String(dateEnd).slice(0, 10)) : undefined;
+
     const newEvent = await insertCalendarEvent({
       title: String(title).trim(),
       description: description ? String(description).trim() : undefined,
       date: dateNorm,
       type: ['ritualistica', 'evento', 'reuniao', 'outro'].includes(type) ? type : 'outro',
+      category: cat,
+      startTime: startTime ? String(startTime).trim() : undefined,
+      dateEnd: dateEndNorm,
+      enviado: cat === 'atividades_mensais' ? Boolean(enviado) : false,
     });
 
     return NextResponse.json(newEvent);
