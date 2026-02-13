@@ -1,11 +1,48 @@
 import { NextResponse } from 'next/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getMembers, insertMember } from '@/lib/data';
 import type { Member } from '@/types';
 
 export async function GET() {
   try {
     const members = await getMembers();
-    return NextResponse.json(members);
+    const admin = createAdminClient();
+    const userIds = members.map((m) => m.userId).filter(Boolean) as string[];
+    const avatarByUserId = new Map<string, string>();
+    const avatarByName = new Map<string, string>();
+
+    if (userIds.length > 0) {
+      const { data: profilesById } = await admin
+        .from('profiles')
+        .select('id, avatar_url')
+        .in('id', userIds);
+      for (const p of profilesById ?? []) {
+        if (p.avatar_url) avatarByUserId.set(p.id, p.avatar_url);
+      }
+    }
+
+    const membersWithoutPhoto = members.filter((m) => !m.userId || !avatarByUserId.get(m.userId));
+    if (membersWithoutPhoto.length > 0) {
+      const { data: profilesWithAvatar } = await admin
+        .from('profiles')
+        .select('name, avatar_url')
+        .not('avatar_url', 'is', null);
+      for (const p of profilesWithAvatar ?? []) {
+        const name = (p.name || '').trim();
+        if (name && p.avatar_url) avatarByName.set(name.toLowerCase(), p.avatar_url);
+      }
+    }
+
+    const enriched = members.map((m) => {
+      const byUser = m.userId ? avatarByUserId.get(m.userId) : undefined;
+      if (byUser) return { ...m, photo: byUser };
+      const byName = (m.name || '').trim().toLowerCase();
+      const fromProfile = avatarByName.get(byName);
+      if (fromProfile) return { ...m, photo: fromProfile };
+      return m;
+    });
+
+    return NextResponse.json(enriched);
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: 'Erro ao carregar membros' }, { status: 500 });
