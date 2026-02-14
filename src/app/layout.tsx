@@ -25,8 +25,8 @@ export const metadata: Metadata = {
     images: [logoUrl],
   },
   icons: {
-    icon: [{ url: "/logocapitulo.png", type: "image/png", sizes: "any" }],
-    apple: [{ url: "/logocapitulo.png", type: "image/png", sizes: "any" }],
+    icon: [{ url: "/icon", type: "image/png", sizes: "any" }],
+    apple: [{ url: "/icon", type: "image/png", sizes: "any" }],
   },
   appleWebApp: {
     capable: true,
@@ -49,8 +49,8 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <head>
-        <link rel="icon" href="/logocapitulo.png" type="image/png" sizes="any" />
-        <link rel="apple-touch-icon" href="/logocapitulo.png" />
+        <link rel="icon" href="/icon" type="image/png" sizes="any" />
+        <link rel="apple-touch-icon" href="/icon" />
         <meta property="og:image" content={logoUrl} />
         <meta property="og:image:url" content={logoUrl} />
       </head>
