@@ -2,24 +2,31 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import LayoutWrapper from "@/components/LayoutWrapper";
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+const logoUrl = `${siteUrl}/logocapitulo.png`;
+
 export const metadata: Metadata = {
   title: "Cavaleiros do Guaporé nº 862 | Ordem DeMolay",
   description: "Site oficial do Capítulo DeMolay Cavaleiros do Guaporé número 862 - Fraternidade, Reverência e Companheirismo",
   manifest: "/manifest.json",
-  metadataBase: new URL(process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'),
+  metadataBase: new URL(siteUrl),
   openGraph: {
     title: "Cavaleiros do Guaporé nº 862 | Ordem DeMolay",
     description: "Site oficial do Capítulo DeMolay Cavaleiros do Guaporé número 862",
-    images: ['/logocapitulo.png'],
+    url: siteUrl,
+    siteName: "Cavaleiros do Guaporé nº 862",
+    images: [{ url: logoUrl, width: 512, height: 512, alt: "Cap. Cavaleiros do Guaporé nº 862" }],
   },
   twitter: {
-    card: 'summary_large_image',
+    card: "summary_large_image",
     title: "Cavaleiros do Guaporé nº 862 | Ordem DeMolay",
-    images: ['/logocapitulo.png'],
+    images: [logoUrl],
   },
   icons: {
-    icon: '/logocapitulo.png',
-    apple: '/logocapitulo.png',
+    icon: [{ url: "/logocapitulo.png", type: "image/png", sizes: "any" }],
+    apple: [{ url: "/logocapitulo.png", type: "image/png", sizes: "any" }],
   },
   appleWebApp: {
     capable: true,
@@ -42,8 +49,10 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <head>
-        <link rel="icon" href="/logocapitulo.png" />
+        <link rel="icon" href="/logocapitulo.png" type="image/png" sizes="any" />
         <link rel="apple-touch-icon" href="/logocapitulo.png" />
+        <meta property="og:image" content={logoUrl} />
+        <meta property="og:image:url" content={logoUrl} />
       </head>
       <body className="antialiased min-h-screen flex flex-col font-sans">
         <LayoutWrapper>{children}</LayoutWrapper>
