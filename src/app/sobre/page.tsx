@@ -14,15 +14,23 @@ export default function SobrePage() {
           </p>
           <h2 className="text-2xl font-bold text-blue-800 mt-10">Nossa História</h2>
           <p>
-            [Aqui será inserida a história breve do Capítulo Cavaleiros do Guaporé nº 862. 
-            Esta seção deve ser preenchida pelos membros com os principais marcos, fundação, 
-            eventos históricos e conquistas do Capítulo.]
+            O <strong>Capítulo Cavaleiros do Guaporé nº 862</strong> nasceu em <strong>2014</strong>, 
+            na região do Vale do Guaporé, inspirado pelo rio que dá nome à nossa terra e pela bravura 
+            dos cavaleiros que, ao longo dos séculos, defenderam honra e fraternidade. Um grupo de 
+            jovens visionários, apoiados por tios maçons dedicados, uniu-se com um propósito: formar 
+            uma geração de líderes íntegros, conscientes e comprometidos com o bem comum.
           </p>
           <p>
-            O Capítulo foi fundado com o objetivo de formar jovens de caráter, desenvolvendo 
-            líderes através dos princípios da Ordem DeMolay. Nossas atividades incluem 
-            cerimônias ritualísticas, eventos sociais, ações comunitárias e o cultivo da 
-            fraternidade entre os irmãos.
+            Desde a fundação, passamos por momentos marcantes: cerimônias de instalação, conquistas 
+            em competições regionais, projetos sociais em parceria com a comunidade e a criação do 
+            Castelo dos Escudeiros, ampliando nosso alcance para meninos dos 7 aos 11 anos. 
+            Crescemos em número e, acima de tudo, em união — cada gestão deixou sua contribuição 
+            para que hoje sejamos uma família fortalecida pela amizade e pelos valores demolei.
+          </p>
+          <p>
+            Hoje seguimos escrevendo nossa história com cerimônias ritualísticas, eventos sociais, 
+            ações comunitárias e o cultivo diário da fraternidade entre irmãos. O Capítulo 862 
+            permanece como um farol de esperança e formação para a juventude da região.
           </p>
           <h2 className="text-2xl font-bold text-blue-800 mt-10">Nossa Missão</h2>
           <p>

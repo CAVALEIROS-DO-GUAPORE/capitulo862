@@ -2,6 +2,9 @@
 -- Adiciona colunas phone, birth_date, avatar_url
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE news ADD COLUMN IF NOT EXISTS image TEXT;
+ALTER TABLE news ADD COLUMN IF NOT EXISTS instagram_url TEXT;
+ALTER TABLE news ADD COLUMN IF NOT EXISTS images TEXT[] DEFAULT '{}';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS birth_date DATE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true;
