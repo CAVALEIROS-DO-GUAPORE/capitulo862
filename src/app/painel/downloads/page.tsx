@@ -24,6 +24,14 @@ interface DownloadItem {
 
 const DOWNLOADS: DownloadItem[] = [
   {
+    id: 'modelo-oficio-original',
+    label: 'Modelo de Ofício/Convite (Word)',
+    description: 'Arquivo original (sem preenchimento automático) para edição manual.',
+    endpoint: '/api/downloads/modelo-oficio',
+    filename: 'modelo_oficio.docx',
+    category: CATEGORIA_CANETA_OURO,
+  },
+  {
     id: 'pautas-frequencia',
     label: 'Pautas e Frequência (Excel)',
     description: 'Modelo em Excel para pautas e chamada de frequência.',

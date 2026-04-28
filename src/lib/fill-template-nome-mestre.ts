@@ -81,7 +81,7 @@ export function fillTemplateNomeMestreDocx(
 }
 
 /**
- * Word: substitui vários placeholders no document.xml.
+ * Word: substitui vários placeholders em todos os XMLs dentro de word/.
  * Para cada chave em data, substitui {chave} e {chave) no XML.
  */
 export function fillTemplateDocxData(
@@ -91,16 +91,22 @@ export function fillTemplateDocxData(
   const content = fs.readFileSync(templatePath, 'binary');
   const zip = new PizZip(content);
 
-  const docPath = 'word/document.xml';
-  const file = zip.files[docPath];
-  if (file) {
+  const wordXmlPaths = Object.keys(zip.files).filter(
+    (p) => p.startsWith('word/') && p.endsWith('.xml')
+  );
+  for (const xmlPath of wordXmlPaths) {
+    const file = zip.files[xmlPath];
+    if (!file) continue;
     let xml = file.asText();
+    let changed = false;
     for (const [key, val] of Object.entries(data)) {
       const value = escapeXmlText(val ?? '');
+      const before = xml;
       xml = xml.replace(new RegExp(`\\{${key}\\)}`, 'g'), value);
       xml = xml.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+      if (xml !== before) changed = true;
     }
-    zip.file(docPath, xml);
+    if (changed) zip.file(xmlPath, xml);
   }
 
   return zip.generate({
