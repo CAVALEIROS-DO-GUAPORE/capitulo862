@@ -26,6 +26,45 @@ function formatMoney(value: number): string {
   return `R$ ${Math.abs(value).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
 }
 
+function wrapText(
+  text: string,
+  maxWidth: number,
+  font: { widthOfTextAtSize: (t: string, s: number) => number },
+  fontSize: number
+): string[] {
+  const t = (text || '').replace(/\s+/g, ' ').trim();
+  if (!t) return ['—'];
+  const words = t.split(' ');
+  const lines: string[] = [];
+  let current = '';
+  for (const w of words) {
+    const next = current ? `${current} ${w}` : w;
+    if (font.widthOfTextAtSize(next, fontSize) <= maxWidth) {
+      current = next;
+      continue;
+    }
+    if (current) lines.push(current);
+    // palavra longa: quebra "na marra"
+    if (font.widthOfTextAtSize(w, fontSize) <= maxWidth) {
+      current = w;
+    } else {
+      let chunk = '';
+      for (const ch of w) {
+        const tryChunk = chunk + ch;
+        if (font.widthOfTextAtSize(tryChunk, fontSize) <= maxWidth) {
+          chunk = tryChunk;
+        } else {
+          if (chunk) lines.push(chunk);
+          chunk = ch;
+        }
+      }
+      current = chunk;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length ? lines : ['—'];
+}
+
 export async function buildExtratoFinanceiroPdf(
   entries: FinanceEntry[],
   tituloPeriodo?: string,
@@ -89,30 +128,46 @@ export async function buildExtratoFinanceiroPdf(
 
   const colDate = MARGIN;
   const colDesc = MARGIN + 72;
-  const colType = MARGIN + 280;
-  const colVal = PAGE_WIDTH - MARGIN - 75;
+  const colType = MARGIN + 330;
+  const colValRight = PAGE_WIDTH - MARGIN;
 
   page.drawText('Data', { x: colDate, y, size: FONT_SIZE, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
   page.drawText('Descrição', { x: colDesc, y, size: FONT_SIZE, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
   page.drawText('Tipo', { x: colType, y, size: FONT_SIZE, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
-  page.drawText('Valor', { x: colVal, y, size: FONT_SIZE, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+  {
+    const w = fontBold.widthOfTextAtSize('Valor', FONT_SIZE);
+    page.drawText('Valor', { x: colValRight - w, y, size: FONT_SIZE, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+  }
   y -= LINE_HEIGHT + 2;
 
-  const descMaxWidth = colVal - colDesc - 10;
+  const valueReserve = 110;
+  const descMaxWidth = colType - colDesc - 12;
+  const typeMaxWidth = colValRight - valueReserve - colType;
 
   for (const e of sorted) {
-    if (y < MARGIN + 60) {
+    const tipo = e.amount >= 0 ? 'Entrada' : 'Saída';
+    const valorStr = (e.amount >= 0 ? '+' : '') + formatMoney(e.amount);
+    const descLines = wrapText(e.description || '—', descMaxWidth, font, FONT_SIZE);
+    const linesNeeded = Math.max(1, descLines.length);
+    const rowHeight = LINE_HEIGHT * linesNeeded;
+
+    if (y < MARGIN + 60 + rowHeight) {
       page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
       y = PAGE_HEIGHT - MARGIN;
     }
-    const desc = (e.description || '—').slice(0, 50);
-    const tipo = e.amount >= 0 ? 'Entrada' : 'Saída';
-    const valorStr = (e.amount >= 0 ? '+' : '') + formatMoney(e.amount);
+
     page.drawText(formatDate(e.date), { x: colDate, y, size: FONT_SIZE, font, color: rgb(0.1, 0.1, 0.1) });
-    page.drawText(desc, { x: colDesc, y, size: FONT_SIZE, font, color: rgb(0.1, 0.1, 0.1) });
-    page.drawText(tipo, { x: colType, y, size: FONT_SIZE, font, color: e.amount >= 0 ? rgb(0, 0.5, 0) : rgb(0.7, 0, 0) });
-    page.drawText(valorStr, { x: colVal, y, size: FONT_SIZE, font, color: e.amount >= 0 ? rgb(0, 0.5, 0) : rgb(0.7, 0, 0) });
-    y -= LINE_HEIGHT;
+    for (let i = 0; i < descLines.length; i++) {
+      page.drawText(descLines[i], { x: colDesc, y: y - (LINE_HEIGHT * i), size: FONT_SIZE, font, color: rgb(0.1, 0.1, 0.1) });
+    }
+
+    const tipoLabel = font.widthOfTextAtSize(tipo, FONT_SIZE) <= typeMaxWidth ? tipo : tipo.slice(0, 12);
+    page.drawText(tipoLabel, { x: colType, y, size: FONT_SIZE, font, color: e.amount >= 0 ? rgb(0, 0.5, 0) : rgb(0.7, 0, 0) });
+
+    const valorW = font.widthOfTextAtSize(valorStr, FONT_SIZE);
+    page.drawText(valorStr, { x: colValRight - valorW, y, size: FONT_SIZE, font, color: e.amount >= 0 ? rgb(0, 0.5, 0) : rgb(0.7, 0, 0) });
+
+    y -= rowHeight;
   }
 
   if (y < MARGIN + 40) {
@@ -128,13 +183,17 @@ export async function buildExtratoFinanceiroPdf(
   });
   y -= LINE_HEIGHT;
   page.drawText('Saldo do período', { x: colType, y, size: FONT_SIZE, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
-  page.drawText(formatMoney(saldo), {
-    x: colVal,
+  {
+    const saldoStr = formatMoney(saldo);
+    const w = fontBold.widthOfTextAtSize(saldoStr, FONT_SIZE);
+    page.drawText(saldoStr, {
+      x: colValRight - w,
     y,
     size: FONT_SIZE,
     font: fontBold,
     color: saldo >= 0 ? rgb(0, 0.5, 0) : rgb(0.7, 0, 0),
-  });
+    });
+  }
 
   return doc.save();
 }

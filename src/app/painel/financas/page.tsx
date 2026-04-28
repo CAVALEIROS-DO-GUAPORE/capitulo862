@@ -66,6 +66,10 @@ export default function PainelFinancasPage() {
 
   const balance = entries.reduce((sum, e) => sum + e.amount, 0);
 
+  const money = useCallback((value: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  }, []);
+
   function openAdd() {
     setEditing(null);
     setForm({
@@ -242,7 +246,7 @@ export default function PainelFinancasPage() {
         <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
           <h3 className="text-slate-600 text-sm mb-1">Saldo do Capítulo</h3>
           <p className={`text-2xl font-bold ${balance >= 0 ? 'text-blue-800' : 'text-red-600'}`}>
-            R$ {balance.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+            {money(balance)}
           </p>
         </div>
       </div>
@@ -273,9 +277,10 @@ export default function PainelFinancasPage() {
                       {e.amount >= 0 ? 'Entrada' : 'Saída'}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-right font-medium">
+                  <td className="py-3 px-4 text-right font-medium tabular-nums whitespace-nowrap">
                     <span className={e.amount >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {e.amount >= 0 ? '+' : ''}R$ {Math.abs(e.amount).toFixed(2).replace('.', ',')}
+                      {e.amount >= 0 ? '+' : '-'}
+                      {money(Math.abs(e.amount)).replace('-', '')}
                     </span>
                   </td>
                   {canManage && (
