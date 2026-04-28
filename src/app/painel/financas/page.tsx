@@ -65,6 +65,8 @@ export default function PainelFinancasPage() {
   }, [loadEntries]);
 
   const balance = entries.reduce((sum, e) => sum + e.amount, 0);
+  const totalEntradas = entries.reduce((sum, e) => sum + (e.amount > 0 ? e.amount : 0), 0);
+  const totalSaidas = entries.reduce((sum, e) => sum + (e.amount < 0 ? Math.abs(e.amount) : 0), 0);
 
   const money = useCallback((value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -242,7 +244,19 @@ export default function PainelFinancasPage() {
         Entradas e saídas financeiras do capítulo. Filtre por ano, mês ou data e gere o extrato em PDF.
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
+          <h3 className="text-slate-600 text-sm mb-1">Entradas no período</h3>
+          <p className="text-2xl font-bold text-green-700 tabular-nums">
+            {money(totalEntradas)}
+          </p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
+          <h3 className="text-slate-600 text-sm mb-1">Saídas no período</h3>
+          <p className="text-2xl font-bold text-red-700 tabular-nums">
+            {money(totalSaidas)}
+          </p>
+        </div>
         <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
           <h3 className="text-slate-600 text-sm mb-1">Saldo do Capítulo</h3>
           <p className={`text-2xl font-bold ${balance >= 0 ? 'text-blue-800' : 'text-red-600'}`}>

@@ -75,6 +75,8 @@ export async function buildExtratoFinanceiroPdf(
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
 
   const sorted = [...entries].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const totalEntradas = sorted.reduce((s, e) => s + (e.amount > 0 ? e.amount : 0), 0);
+  const totalSaidas = sorted.reduce((s, e) => s + (e.amount < 0 ? Math.abs(e.amount) : 0), 0);
   const saldo = sorted.reduce((s, e) => s + e.amount, 0);
 
   let page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
@@ -125,6 +127,14 @@ export async function buildExtratoFinanceiroPdf(
     x: MARGIN, y, size: 9, font, color: rgb(0.4, 0.4, 0.4),
   });
   y -= LINE_HEIGHT + 8;
+
+  // Resumo do período (Entradas/Saídas/Saldo)
+  page.drawText(`Entradas: ${formatMoney(totalEntradas)}`, { x: MARGIN, y, size: FONT_SIZE, font: fontBold, color: rgb(0, 0.45, 0) });
+  y -= LINE_HEIGHT;
+  page.drawText(`Saídas: ${formatMoney(totalSaidas)}`, { x: MARGIN, y, size: FONT_SIZE, font: fontBold, color: rgb(0.7, 0, 0) });
+  y -= LINE_HEIGHT;
+  page.drawText(`Saldo: ${formatMoney(saldo)}`, { x: MARGIN, y, size: FONT_SIZE, font: fontBold, color: saldo >= 0 ? rgb(0, 0.45, 0) : rgb(0.7, 0, 0) });
+  y -= LINE_HEIGHT + 10;
 
   const colDate = MARGIN;
   const colDesc = MARGIN + 72;
