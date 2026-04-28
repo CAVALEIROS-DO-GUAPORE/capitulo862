@@ -9,6 +9,7 @@ export default function PainelFinancasPage() {
   const { confirm, toast } = useDialogs();
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [entries, setEntries] = useState<FinanceEntry[]>([]);
+  const [entriesAll, setEntriesAll] = useState<FinanceEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<'add' | 'edit' | null>(null);
   const [editing, setEditing] = useState<FinanceEntry | null>(null);
@@ -50,21 +51,36 @@ export default function PainelFinancasPage() {
       .finally(() => setLoading(false));
   }, [filtroAno, filtroMes, filtroData]);
 
+  const loadEntriesAll = useCallback(function loadEntriesAll() {
+    fetch('/api/finance')
+      .then((r) => r.json())
+      .then((data) => setEntriesAll(Array.isArray(data) ? data : []))
+      .catch(() => setEntriesAll([]));
+  }, []);
+
   useEffect(() => {
     setLoading(true);
     loadEntries();
   }, [loadEntries]);
 
   useEffect(() => {
+    loadEntriesAll();
+  }, [loadEntriesAll]);
+
+  useEffect(() => {
     const supabase = createClient();
     const channel = supabase
       .channel('finance-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'finance_entries' }, () => loadEntries())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'finance_entries' }, () => {
+        loadEntries();
+        loadEntriesAll();
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [loadEntries]);
+  }, [loadEntries, loadEntriesAll]);
 
-  const balance = entries.reduce((sum, e) => sum + e.amount, 0);
+  const saldoPeriodo = entries.reduce((sum, e) => sum + e.amount, 0);
+  const saldoAtual = entriesAll.reduce((sum, e) => sum + e.amount, 0);
   const totalEntradas = entries.reduce((sum, e) => sum + (e.amount > 0 ? e.amount : 0), 0);
   const totalSaidas = entries.reduce((sum, e) => sum + (e.amount < 0 ? Math.abs(e.amount) : 0), 0);
 
@@ -258,9 +274,12 @@ export default function PainelFinancasPage() {
           </p>
         </div>
         <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
-          <h3 className="text-slate-600 text-sm mb-1">Saldo do Capítulo</h3>
-          <p className={`text-2xl font-bold ${balance >= 0 ? 'text-blue-800' : 'text-red-600'}`}>
-            {money(balance)}
+          <h3 className="text-slate-600 text-sm mb-1">Saldo atual do capítulo</h3>
+          <p className={`text-2xl font-bold ${saldoAtual >= 0 ? 'text-blue-800' : 'text-red-600'}`}>
+            {money(saldoAtual)}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            Saldo do período selecionado: <span className={saldoPeriodo >= 0 ? 'text-green-700' : 'text-red-700'}>{money(saldoPeriodo)}</span>
           </p>
         </div>
       </div>
