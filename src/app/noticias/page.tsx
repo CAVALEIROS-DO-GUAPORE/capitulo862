@@ -59,7 +59,13 @@ export default function NoticiasPage() {
                   <h2 className="text-lg font-bold text-blue-800 mt-1 mb-2">
                     {newsItem.title}
                   </h2>
-                  <p className="text-slate-600 text-sm leading-relaxed">{newsItem.description}</p>
+                  <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap break-words">{newsItem.description}</p>
+                  {(newsItem.authorName || newsItem.authorRole) && (
+                    <p className="text-slate-500 text-sm mt-3">
+                      — {newsItem.authorName ? newsItem.authorName : 'Autor'}
+                      {newsItem.authorRole ? `, ${newsItem.authorRole}` : ''}
+                    </p>
+                  )}
                   {newsItem.instagramUrl && (
                     <a
                       href={newsItem.instagramUrl}

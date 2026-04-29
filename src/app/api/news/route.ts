@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getNews, insertNews } from '@/lib/data';
-import type { News } from '@/types';
 
 export async function GET() {
   try {
     const news = await getNews();
     return NextResponse.json(news);
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: 'Erro ao carregar notícias' }, { status: 500 });
   }
 }
@@ -14,7 +13,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, description, images, image, instagramUrl } = body;
+    const { title, description, images, image, instagramUrl, authorName, authorRole } = body;
 
     if (!title || !description) {
       return NextResponse.json({ error: 'Título e descrição são obrigatórios' }, { status: 400 });
@@ -25,6 +24,8 @@ export async function POST(request: Request) {
       description: String(description).trim(),
       image: image ? String(image).trim() : undefined,
       instagramUrl: instagramUrl ? String(instagramUrl).trim() : undefined,
+      authorName: authorName ? String(authorName).trim() : undefined,
+      authorRole: authorRole ? String(authorRole).trim() : undefined,
       images: Array.isArray(images) ? images : image ? [image] : [],
       createdAt: new Date().toISOString(),
     });

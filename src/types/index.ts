@@ -50,6 +50,8 @@ export interface News {
   images: string[];
   createdAt: string;
   authorId?: string;
+  authorName?: string;
+  authorRole?: string;
 }
 
 export type AtaType = 'RITUALISTICA' | 'ADMINISTRATIVA' | 'EVENTO' | 'OUTROS';

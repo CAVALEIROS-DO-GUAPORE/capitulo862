@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS news (
   instagram_url TEXT,
   images TEXT[] DEFAULT '{}',
   author_id UUID REFERENCES auth.users(id),
+  author_name TEXT,
+  author_role TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

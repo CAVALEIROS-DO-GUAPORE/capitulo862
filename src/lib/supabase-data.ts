@@ -35,6 +35,8 @@ function toNews(row: Record<string, unknown>): News {
     images: Array.isArray(row.images) ? row.images as string[] : [],
     createdAt: String(row.created_at ?? ''),
     authorId: row.author_id ? String(row.author_id) : undefined,
+    authorName: row.author_name ? String(row.author_name) : undefined,
+    authorRole: row.author_role ? String(row.author_role) : undefined,
   };
 }
 
@@ -194,6 +196,8 @@ export async function insertNews(n: Omit<News, 'id'>): Promise<News> {
     instagram_url: n.instagramUrl ?? null,
     images: n.images ?? [],
     author_id: n.authorId ?? null,
+    author_name: n.authorName ?? null,
+    author_role: n.authorRole ?? null,
   };
   const { data, error } = await supabase.from('news').insert(row).select('*').single();
   if (error) throw error;
@@ -208,6 +212,8 @@ export async function updateNews(id: string, partial: Partial<News>): Promise<Ne
   if (partial.image !== undefined) row.image = partial.image;
   if (partial.instagramUrl !== undefined) row.instagram_url = partial.instagramUrl;
   if (partial.images !== undefined) row.images = partial.images;
+  if (partial.authorName !== undefined) row.author_name = partial.authorName;
+  if (partial.authorRole !== undefined) row.author_role = partial.authorRole;
   const { data, error } = await supabase.from('news').update(row).eq('id', id).select('*').single();
   if (error) throw error;
   return toNews(data);

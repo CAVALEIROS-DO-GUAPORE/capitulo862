@@ -9,7 +9,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { title, description, images, image, instagramUrl } = body;
+    const { title, description, images, image, instagramUrl, authorName, authorRole } = body;
 
     const news = await getNews();
     if (!news.find((n) => n.id === id)) {
@@ -22,10 +22,12 @@ export async function PATCH(
     if (images !== undefined) partial.images = Array.isArray(images) ? images : [];
     if (image !== undefined) partial.image = image ? String(image).trim() : undefined;
     if (instagramUrl !== undefined) partial.instagramUrl = instagramUrl ? String(instagramUrl).trim() : undefined;
+    if (authorName !== undefined) partial.authorName = authorName ? String(authorName).trim() : undefined;
+    if (authorRole !== undefined) partial.authorRole = authorRole ? String(authorRole).trim() : undefined;
 
     const updated = await updateNews(id, partial);
     return NextResponse.json(updated);
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 });
   }
 }
@@ -42,7 +44,7 @@ export async function DELETE(
     }
     await deleteNews(id);
     return NextResponse.json({ success: true });
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: 'Erro ao excluir' }, { status: 500 });
   }
 }

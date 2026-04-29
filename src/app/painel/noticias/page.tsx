@@ -8,12 +8,12 @@ import type { News } from '@/types';
 
 export default function PainelNoticiasPage() {
   const { confirm, toast } = useDialogs();
-  const [user, setUser] = useState<{ role: string } | null>(null);
+  const [user, setUser] = useState<{ role: string; name?: string } | null>(null);
   const [news, setNews] = useState<News[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<'add' | 'edit' | null>(null);
   const [editing, setEditing] = useState<News | null>(null);
-  const [form, setForm] = useState({ title: '', description: '', image: '', instagramUrl: '' });
+  const [form, setForm] = useState({ title: '', description: '', image: '', instagramUrl: '', authorName: '', authorRole: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [imageUploading, setImageUploading] = useState(false);
@@ -52,7 +52,14 @@ export default function PainelNoticiasPage() {
 
   function openAdd() {
     setEditing(null);
-    setForm({ title: '', description: '', image: '', instagramUrl: '' });
+    setForm({
+      title: '',
+      description: '',
+      image: '',
+      instagramUrl: '',
+      authorName: user?.name || '',
+      authorRole: user?.role || '',
+    });
     setModal('add');
     setError('');
   }
@@ -64,6 +71,8 @@ export default function PainelNoticiasPage() {
       description: n.description,
       image: n.image || n.images?.[0] || '',
       instagramUrl: n.instagramUrl || '',
+      authorName: n.authorName || user?.name || '',
+      authorRole: n.authorRole || user?.role || '',
     });
     setModal('edit');
     setError('');
@@ -116,6 +125,8 @@ export default function PainelNoticiasPage() {
             description: form.description,
             image: form.image || undefined,
             instagramUrl: form.instagramUrl || undefined,
+            authorName: form.authorName || undefined,
+            authorRole: form.authorRole || undefined,
           }),
         });
         if (!res.ok) {
@@ -131,6 +142,8 @@ export default function PainelNoticiasPage() {
             description: form.description,
             image: form.image || undefined,
             instagramUrl: form.instagramUrl || undefined,
+            authorName: form.authorName || undefined,
+            authorRole: form.authorRole || undefined,
           }),
         });
         if (!res.ok) {
@@ -209,8 +222,14 @@ export default function PainelNoticiasPage() {
                 )}
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-blue-800">{n.title}</h3>
-                  <p className="text-slate-600 text-sm mt-1 line-clamp-2">{n.description}</p>
+                  <p className="text-slate-600 text-sm mt-1 line-clamp-2 whitespace-pre-wrap break-words">{n.description}</p>
                   <p className="text-slate-400 text-xs mt-2">{formatDate(n.createdAt)}</p>
+                  {(n.authorName || n.authorRole) && (
+                    <p className="text-slate-500 text-xs mt-1">
+                      {n.authorName ? n.authorName : 'Autor'}
+                      {n.authorRole ? ` — ${n.authorRole}` : ''}
+                    </p>
+                  )}
                   {n.instagramUrl && (
                     <a
                       href={n.instagramUrl}
@@ -271,8 +290,30 @@ export default function PainelNoticiasPage() {
                   rows={4}
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg resize-none"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg resize-none whitespace-pre-wrap"
                 />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 text-sm mb-1">Assinatura (nome)</label>
+                  <input
+                    type="text"
+                    value={form.authorName}
+                    onChange={(e) => setForm((f) => ({ ...f, authorName: e.target.value }))}
+                    placeholder={user?.name || 'Seu nome'}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 text-sm mb-1">Cargo</label>
+                  <input
+                    type="text"
+                    value={form.authorRole}
+                    onChange={(e) => setForm((f) => ({ ...f, authorRole: e.target.value }))}
+                    placeholder={user?.role || 'Seu cargo'}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-slate-700 text-sm mb-1">Imagem da notícia</label>
