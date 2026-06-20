@@ -60,6 +60,16 @@ export default function LoginPage() {
         return;
       }
 
+      const maintenanceRes = await fetch('/api/settings/maintenance');
+      if (maintenanceRes.ok) {
+        const maintenanceData = await maintenanceRes.json();
+        if (maintenanceData.maintenanceEnabled === true && profile.role !== 'admin') {
+          await supabase.auth.signOut();
+          setError('O site está em manutenção. Apenas o administrador pode acessar no momento.');
+          return;
+        }
+      }
+
       let mustChangePassword = false;
       const { data: flagRow, error: flagError } = await supabase
         .from('profiles')

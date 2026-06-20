@@ -25,3 +25,46 @@ CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.
 -- Criar bucket news-images: no Supabase Dashboard > Storage > New bucket
 -- Nome: news-images | Public: SIM
 -- Policies: mesma lógica do avatars
+
+-- Configurações globais do site (modo manutenção)
+CREATE TABLE IF NOT EXISTS site_settings (
+  id TEXT PRIMARY KEY DEFAULT 'default',
+  maintenance_enabled BOOLEAN NOT NULL DEFAULT false,
+  maintenance_description TEXT,
+  maintenance_return_date DATE,
+  maintenance_return_time TIME,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_by UUID REFERENCES auth.users(id)
+);
+
+INSERT INTO site_settings (id, maintenance_enabled)
+VALUES ('default', false)
+ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE site_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can read site settings" ON site_settings;
+CREATE POLICY "Anyone can read site settings"
+  ON site_settings FOR SELECT
+  USING (true);
+
+DROP POLICY IF EXISTS "Only admin can update site settings" ON site_settings;
+CREATE POLICY "Only admin can update site settings"
+  ON site_settings FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+    )
+  );
+
+-- Campos extras da página de manutenção
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS maintenance_description TEXT;
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS maintenance_return_date DATE;
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS maintenance_return_time TIME;

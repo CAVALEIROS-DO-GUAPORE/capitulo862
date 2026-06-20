@@ -160,6 +160,7 @@ export default function PainelLayout({
 
   const links = [
     { href: '/painel', label: 'Início' },
+    ...(user?.role === 'admin' ? [{ href: '/painel/manutencao', label: 'Manutenção' }] : []),
     ...(user ? (canViewCandidatos(user.role) ? [{ href: '/painel/candidatos', label: 'Candidaturas' }] : []) : []),
     ...(user ? (canViewCandidatos(user.role) ? [{ href: '/painel/usuarios', label: 'Usuários' }] : []) : []),
     { href: '/painel/membros', label: 'Membros' },

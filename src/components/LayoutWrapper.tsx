@@ -12,12 +12,13 @@ export default function LayoutWrapper({
 }) {
   const pathname = usePathname();
   const isPainel = pathname?.startsWith('/painel');
+  const isManutencao = pathname === '/manutencao';
 
   return (
     <DialogsProvider>
-      {!isPainel && <Header />}
+      {!isPainel && !isManutencao && <Header />}
       <main className="flex-1">{children}</main>
-      {!isPainel && <Footer />}
+      {!isPainel && !isManutencao && <Footer />}
     </DialogsProvider>
   );
 }

@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest } from 'next/server';
 
-function getTokenFromRequest(request: NextRequest): string | null {
+export function getTokenFromRequest(request: NextRequest): string | null {
   const authHeader = request.headers.get('Authorization');
   const bearer = authHeader?.replace(/^Bearer\s+/i, '').trim();
   if (bearer) return bearer;

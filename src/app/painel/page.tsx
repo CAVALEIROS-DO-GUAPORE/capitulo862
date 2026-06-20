@@ -16,6 +16,9 @@ export default function PainelPage() {
   }, []);
 
   const cards = [
+    ...(user?.role === 'admin'
+      ? [{ href: '/painel/manutencao', label: 'Manutenção', desc: 'Ativar ou desativar modo manutenção' }]
+      : []),
     { href: '/painel/membros', label: 'Membros', desc: 'Ver membros' },
     { href: '/painel/noticias', label: 'Notícias', desc: 'Ver notícias' },
     { href: '/painel/calendario', label: 'Calendário', desc: 'Eventos e ritualísticas' },
