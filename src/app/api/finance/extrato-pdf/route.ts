@@ -1,11 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import path from 'path';
 import fs from 'fs';
 import { getFinanceEntries } from '@/lib/data';
 import { buildExtratoFinanceiroPdf } from '@/lib/pdf-extrato-financeiro';
 import { CHAPTER_NAME, CHAPTER_NUMBER } from '@/data/mock';
+import { requirePanelUser } from '@/lib/panel-auth';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const auth = await requirePanelUser(request);
+  if (!auth.ok) return auth.response;
+
   try {
     const { searchParams } = new URL(request.url);
     const ano = searchParams.get('ano');

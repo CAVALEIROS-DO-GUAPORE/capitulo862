@@ -68,3 +68,56 @@ CREATE POLICY "Only admin can update site settings"
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS maintenance_description TEXT;
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS maintenance_return_date DATE;
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS maintenance_return_time TIME;
+
+-- Comprovantes de lançamentos financeiros
+CREATE TABLE IF NOT EXISTS finance_receipts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  finance_entry_id UUID NOT NULL REFERENCES finance_entries(id) ON DELETE CASCADE,
+  storage_path TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  file_size INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS finance_receipts_entry_id_idx ON finance_receipts(finance_entry_id);
+
+ALTER TABLE finance_receipts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Authenticated can read finance receipts" ON finance_receipts;
+CREATE POLICY "Authenticated can read finance receipts"
+  ON finance_receipts FOR SELECT
+  TO authenticated
+  USING (true);
+
+-- Criar bucket finance-receipts: Supabase Dashboard > Storage > New bucket
+-- Nome: finance-receipts | Public: NÃO (privado — download via API autenticada)
+
+-- Documentos de candidaturas (ficha solicitação, sindicância, etc.)
+ALTER TABLE membership_candidates ADD COLUMN IF NOT EXISTS sindicancia_resumo TEXT;
+
+CREATE TABLE IF NOT EXISTS candidate_documents (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  candidate_id UUID NOT NULL REFERENCES membership_candidates(id) ON DELETE CASCADE,
+  doc_type TEXT NOT NULL,
+  storage_path TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  file_size INTEGER NOT NULL DEFAULT 0,
+  uploaded_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(candidate_id, doc_type)
+);
+
+CREATE INDEX IF NOT EXISTS candidate_documents_candidate_id_idx ON candidate_documents(candidate_id);
+
+ALTER TABLE candidate_documents ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Authenticated can read candidate documents" ON candidate_documents;
+CREATE POLICY "Authenticated can read candidate documents"
+  ON candidate_documents FOR SELECT
+  TO authenticated
+  USING (true);
+
+-- Criar bucket candidate-documents: Supabase Dashboard > Storage > New bucket
+-- Nome: candidate-documents | Public: NÃO

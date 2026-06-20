@@ -3,7 +3,7 @@ import { createAuthenticatedClient } from '@/lib/supabase/api-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { MANAGER_ROLES, isPanelRole } from '@/lib/auth-constants';
 
-const SENHA_PADRAO = 'capitulo862';
+const SENHA_PADRAO = process.env.DEFAULT_INVITE_PASSWORD || 'capitulo862';
 
 export async function POST(request: NextRequest) {
   try {
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Usuário criado. A senha padrão é "${SENHA_PADRAO}". O usuário pode trocá-la no perfil após o login.`,
+      message: 'Usuário criado. Informe a senha inicial ao membro por um canal seguro. Ele deve alterá-la em Perfil após o primeiro acesso.',
     });
   } catch (err) {
     console.error(err);

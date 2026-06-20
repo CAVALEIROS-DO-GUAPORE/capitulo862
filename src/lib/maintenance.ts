@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest } from 'next/server';
 import { getTokenFromRequest } from '@/lib/supabase/api-auth';
 
@@ -33,6 +34,24 @@ export async function fetchMaintenanceEnabled(): Promise<boolean> {
   }
 }
 
+export async function isSupabaseUserAdmin(supabase: SupabaseClient): Promise<boolean> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, active')
+      .eq('id', user.id)
+      .single();
+
+    return profile?.role === 'admin' && profile?.active !== false;
+  } catch {
+    return false;
+  }
+}
+
+/** Fallback para requisições sem cookies SSR (ex.: API com Bearer). */
 export async function isRequestFromAdmin(request: NextRequest): Promise<boolean> {
   const token = getTokenFromRequest(request);
   if (!token) return false;
@@ -78,6 +97,7 @@ export function isMaintenanceBypassPath(pathname: string): boolean {
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/settings/maintenance') ||
+    pathname.startsWith('/api/auth') ||
     pathname === '/manutencao' ||
     pathname === '/login' ||
     pathname === '/icon' ||

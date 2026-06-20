@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { createAuthenticatedClient } from '@/lib/supabase/api-auth';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { getRollCalls, getRollCallByDate, upsertRollCall } from '@/lib/data';
+import { requirePanelUser, requireRoles, ROLL_CALL_EDITOR_ROLES } from '@/lib/panel-auth';
 
-const ROLES_CAN_LAUNCH_FREQUENCIA = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'escrivao'];
+export async function GET(request: NextRequest) {
+  const auth = await requirePanelUser(request);
+  if (!auth.ok) return auth.response;
 
-export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date');
@@ -23,20 +23,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createAuthenticatedClient(request);
-    if (!supabase) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-    }
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-    }
-
-    const admin = createAdminClient();
-    const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
-    if (!profile || !ROLES_CAN_LAUNCH_FREQUENCIA.includes(profile.role)) {
-      return NextResponse.json({ error: 'Apenas escrivão, Mestre Conselheiro, 1º Conselheiro e admin podem lançar frequência.' }, { status: 403 });
-    }
+    const auth = await requireRoles(request, ROLL_CALL_EDITOR_ROLES);
+    if (!auth.ok) return auth.response;
 
     const body = await request.json();
     const { date, attendance, gestao, tipoReuniao, breveDescricao } = body;

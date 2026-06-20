@@ -9,7 +9,7 @@ export default function CriarSenhaPage() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-8">
           <h1 className="text-2xl font-bold text-blue-800 mb-2">Cadastro por email desativado</h1>
           <p className="text-slate-600 mb-6 text-sm leading-relaxed">
-            O cadastro por link de email não é mais usado. Os usuários são criados pelo Admin, MC ou 1º Conselheiro com uma senha padrão. Faça login com a senha informada pelo administrador (padrão: <strong>capitulo862</strong>) e altere-a em <strong>Perfil</strong> após o acesso.
+            O cadastro por link de email não é mais usado. Os usuários são criados pelo Admin, MC ou 1º Conselheiro com uma senha inicial. Faça login com a senha informada pelo administrador e altere-a em <strong>Perfil</strong> após o acesso.
           </p>
           <Link
             href="/login"

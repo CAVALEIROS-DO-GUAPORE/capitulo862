@@ -1,8 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { getFinanceEntries, insertFinanceEntry } from '@/lib/data';
+import { requirePanelUser, requireRoles, FINANCE_EDITOR_ROLES } from '@/lib/panel-auth';
 import type { FinanceEntry } from '@/types';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const auth = await requirePanelUser(request);
+  if (!auth.ok) return auth.response;
+
   try {
     const { searchParams } = new URL(request.url);
     const ano = searchParams.get('ano');
@@ -21,7 +25,10 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const auth = await requireRoles(request, FINANCE_EDITOR_ROLES);
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await request.json();
     const { type, amount, description, date } = body;

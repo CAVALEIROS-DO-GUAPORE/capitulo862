@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { getNews, insertNews } from '@/lib/data';
+import { requireRoles, NEWS_EDITOR_ROLES } from '@/lib/panel-auth';
 
 export async function GET() {
   try {
@@ -10,7 +11,10 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const auth = await requireRoles(request, NEWS_EDITOR_ROLES);
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await request.json();
     const { title, description, images, image, instagramUrl, authorName, authorRole } = body;

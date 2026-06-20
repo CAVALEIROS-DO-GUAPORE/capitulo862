@@ -1,11 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { getNews, updateNews, deleteNews } from '@/lib/data';
+import { requireRoles, NEWS_EDITOR_ROLES } from '@/lib/panel-auth';
 import type { News } from '@/types';
 
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireRoles(request, NEWS_EDITOR_ROLES);
+  if (!auth.ok) return auth.response;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -33,9 +37,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireRoles(request, NEWS_EDITOR_ROLES);
+  if (!auth.ok) return auth.response;
+
   try {
     const { id } = await params;
     const news = await getNews();

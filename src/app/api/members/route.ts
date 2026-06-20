@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getMembers, insertMember } from '@/lib/data';
+import { requireRoles, MEMBERS_EDITOR_ROLES } from '@/lib/panel-auth';
 import type { Member } from '@/types';
 
 export async function GET() {
@@ -49,7 +50,10 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const auth = await requireRoles(request, MEMBERS_EDITOR_ROLES);
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await request.json();
     const { name, role, category, order, photo, phone, identifier, additionalRoles } = body;

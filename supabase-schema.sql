@@ -136,7 +136,12 @@ CREATE POLICY "news public read" ON news FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
 CREATE POLICY "Users can read own profile" ON profiles FOR SELECT USING (auth.uid() = id);
 DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
-CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE
+  USING (auth.uid() = id)
+  WITH CHECK (
+    auth.uid() = id
+    AND role = (SELECT p.role FROM profiles p WHERE p.id = auth.uid())
+  );
 
 -- Storage: bucket avatars (criar no Supabase Dashboard > Storage)
 -- Políticas no bucket avatars:
@@ -145,6 +150,7 @@ CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.
 --   - DELETE: auth.uid() = (owner do arquivo, via RLS)
 
 -- Trigger: cria perfil automaticamente quando usuário aceita convite
+-- O cargo é sempre "membro"; admins definem o cargo real via convite/API.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
@@ -153,12 +159,12 @@ BEGIN
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'name', ''),
-    COALESCE(NEW.raw_user_meta_data->>'role', 'membro')
+    'membro'
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created

@@ -1,11 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { getMembers, updateMember, deleteMember } from '@/lib/data';
+import { requirePanelUser, requireRoles, MEMBERS_EDITOR_ROLES } from '@/lib/panel-auth';
 import type { Member } from '@/types';
 
 export async function GET(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requirePanelUser(request);
+  if (!auth.ok) return auth.response;
+
   try {
     const { id } = await params;
     const members = await getMembers();
@@ -18,9 +22,12 @@ export async function GET(
 }
 
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireRoles(request, MEMBERS_EDITOR_ROLES);
+  if (!auth.ok) return auth.response;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -58,9 +65,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireRoles(request, MEMBERS_EDITOR_ROLES);
+  if (!auth.ok) return auth.response;
+
   try {
     const { id } = await params;
     const members = await getMembers();

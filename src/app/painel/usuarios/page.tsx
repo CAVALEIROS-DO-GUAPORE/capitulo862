@@ -14,7 +14,8 @@ const PANEL_ROLES = [
   { value: 'escrivao', label: 'Escrivão' },
 ];
 
-const ROLE_LABELS: Record<string, string> = Object.fromEntries(PANEL_ROLES.map((r) => [r.value, r.label]));
+const INVITE_PASSWORD_NOTE =
+  'Informe a senha inicial ao membro por um canal seguro (pessoalmente ou WhatsApp). Ele deve alterá-la em Perfil após o primeiro acesso.';
 
 interface UserItem {
   id: string;
@@ -188,7 +189,7 @@ export default function PainelUsuariosPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao cadastrar usuário');
-      setSuccess(data.message || 'Usuário cadastrado. Senha padrão: capitulo862. O usuário pode trocá-la no perfil.');
+      setSuccess(data.message || `Usuário cadastrado. ${INVITE_PASSWORD_NOTE}`);
       setEmail('');
       setName('');
       setRole('membro');
@@ -305,7 +306,7 @@ export default function PainelUsuariosPage() {
       <div>
         <h1 className="text-2xl font-bold text-blue-800 mb-6">Cadastrar usuário</h1>
         <p className="text-slate-600 mb-6">
-          Cadastro de usuários do painel. Senha inicial: <strong>capitulo862</strong> (pode ser alterada em Perfil).
+          Cadastro de usuários do painel. Após criar a conta, informe a senha inicial ao membro por um canal seguro (pessoalmente ou WhatsApp). Ele deve alterá-la em Perfil após o primeiro acesso.
         </p>
 
         <form onSubmit={handleSubmit} className="max-w-md space-y-4">

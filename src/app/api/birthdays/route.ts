@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requirePanelUser } from '@/lib/panel-auth';
 
 /** Data de fundação/instalação do capítulo: 19 de agosto (12 anos em 2026) */
 const CHAPTER_ANNIVERSARY_MONTH = 8;
@@ -19,7 +20,10 @@ export interface BirthdaysResponse {
   alumniYears: number | null;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requirePanelUser(request);
+  if (!auth.ok) return auth.response;
+
   try {
     const now = new Date();
     const month = now.getMonth() + 1;

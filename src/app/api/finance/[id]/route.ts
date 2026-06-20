@@ -1,11 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { getFinanceEntries, updateFinanceEntry, deleteFinanceEntry } from '@/lib/data';
+import { requireRoles, FINANCE_EDITOR_ROLES } from '@/lib/panel-auth';
 import type { FinanceEntry } from '@/types';
 
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireRoles(request, FINANCE_EDITOR_ROLES);
+  if (!auth.ok) return auth.response;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -34,9 +38,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireRoles(request, FINANCE_EDITOR_ROLES);
+  if (!auth.ok) return auth.response;
+
   try {
     const { id } = await params;
     const entries = await getFinanceEntries();

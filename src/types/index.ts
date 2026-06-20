@@ -109,6 +109,17 @@ export interface FinanceEntry {
   description: string;
   date: string;
   createdAt: string;
+  receiptCount?: number;
+}
+
+export interface FinanceReceipt {
+  id: string;
+  financeEntryId: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  createdAt: string;
+  storagePath: string;
 }
 
 export type CalendarEventType = 'ritualistica' | 'evento' | 'reuniao' | 'outro';
@@ -148,4 +159,16 @@ export interface MembershipCandidate {
   createdAt: string;
   readByMc?: boolean;
   readByFirstCounselor?: boolean;
+  sindicanciaResumo?: string;
+  documents?: CandidateDocument[];
+}
+
+export interface CandidateDocument {
+  id: string;
+  candidateId: string;
+  docType: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  createdAt: string;
 }

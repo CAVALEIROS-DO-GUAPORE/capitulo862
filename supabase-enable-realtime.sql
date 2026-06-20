@@ -7,5 +7,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE news;
 ALTER PUBLICATION supabase_realtime ADD TABLE calendar_events;
 ALTER PUBLICATION supabase_realtime ADD TABLE minutes;
 ALTER PUBLICATION supabase_realtime ADD TABLE finance_entries;
+ALTER PUBLICATION supabase_realtime ADD TABLE finance_receipts;
 ALTER PUBLICATION supabase_realtime ADD TABLE members;
 ALTER PUBLICATION supabase_realtime ADD TABLE membership_candidates;
+ALTER PUBLICATION supabase_realtime ADD TABLE candidate_documents;

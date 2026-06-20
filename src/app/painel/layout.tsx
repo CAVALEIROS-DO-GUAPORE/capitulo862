@@ -156,7 +156,7 @@ export default function PainelLayout({
   }
 
   const canViewCandidatos = (role: string) =>
-    ['admin', 'mestre_conselheiro', 'primeiro_conselheiro'].includes(role);
+    ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'escrivao', 'tesoureiro', 'membro'].includes(role);
 
   const links = [
     { href: '/painel', label: 'Início' },

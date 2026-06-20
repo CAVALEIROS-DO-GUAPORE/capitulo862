@@ -1,5 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { Member, News, InternalMinutes, FinanceEntry, CalendarEvent, RollCall, MembershipCandidate, MemberAdditionalRole } from '@/types';
+import type { Member, News, InternalMinutes, FinanceEntry, FinanceReceipt, CalendarEvent, RollCall, MembershipCandidate, MemberAdditionalRole, CandidateDocument } from '@/types';
+
+export const FINANCE_RECEIPTS_BUCKET = 'finance-receipts';
+export const CANDIDATE_DOCUMENTS_BUCKET = 'candidate-documents';
 
 function parseAdditionalRoles(raw: unknown): MemberAdditionalRole[] {
   if (!Array.isArray(raw)) return [];
@@ -87,6 +90,8 @@ function toCalendarEvent(row: Record<string, unknown>): CalendarEvent {
 }
 
 function toFinanceEntry(row: Record<string, unknown>): FinanceEntry {
+  const receipts = row.finance_receipts as { count?: number }[] | undefined;
+  const receiptCount = receipts?.[0]?.count ?? 0;
   return {
     id: String(row.id),
     type: row.type as 'entrada' | 'saida',
@@ -94,6 +99,19 @@ function toFinanceEntry(row: Record<string, unknown>): FinanceEntry {
     description: String(row.description ?? ''),
     date: String(row.date).slice(0, 10),
     createdAt: String(row.created_at ?? ''),
+    receiptCount: Number(receiptCount) || 0,
+  };
+}
+
+function toFinanceReceipt(row: Record<string, unknown>): FinanceReceipt {
+  return {
+    id: String(row.id),
+    financeEntryId: String(row.finance_entry_id),
+    fileName: String(row.file_name),
+    mimeType: String(row.mime_type),
+    fileSize: Number(row.file_size ?? 0),
+    createdAt: String(row.created_at ?? ''),
+    storagePath: String(row.storage_path),
   };
 }
 
@@ -127,6 +145,19 @@ function toCandidate(row: Record<string, unknown>): MembershipCandidate {
     createdAt: String(row.created_at ?? ''),
     readByMc: Boolean(row.read_by_mc),
     readByFirstCounselor: Boolean(row.read_by_first_counselor),
+    sindicanciaResumo: row.sindicancia_resumo ? String(row.sindicancia_resumo) : undefined,
+  };
+}
+
+function toCandidateDocument(row: Record<string, unknown>): CandidateDocument {
+  return {
+    id: String(row.id),
+    candidateId: String(row.candidate_id),
+    docType: String(row.doc_type),
+    fileName: String(row.file_name),
+    mimeType: String(row.mime_type),
+    fileSize: Number(row.file_size ?? 0),
+    createdAt: String(row.created_at ?? ''),
   };
 }
 
@@ -410,7 +441,7 @@ export interface GetFinanceEntriesOptions {
 
 export async function getFinanceEntries(opts?: GetFinanceEntriesOptions): Promise<FinanceEntry[]> {
   const supabase = createAdminClient();
-  let query = supabase.from('finance_entries').select('*');
+  let query = supabase.from('finance_entries').select('*, finance_receipts(count)');
   if (opts?.data) {
     query = query.eq('date', opts.data);
   } else if (opts?.ano != null) {
@@ -452,8 +483,95 @@ export async function updateFinanceEntry(id: string, partial: Partial<FinanceEnt
 
 export async function deleteFinanceEntry(id: string): Promise<void> {
   const supabase = createAdminClient();
+  await deleteFinanceReceiptsForEntry(id);
   const { error } = await supabase.from('finance_entries').delete().eq('id', id);
   if (error) throw error;
+}
+
+export async function getFinanceReceipts(entryId: string): Promise<FinanceReceipt[]> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('finance_receipts')
+    .select('*')
+    .eq('finance_entry_id', entryId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data || []).map(toFinanceReceipt);
+}
+
+export async function insertFinanceReceipt(row: {
+  financeEntryId: string;
+  storagePath: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+}): Promise<FinanceReceipt> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('finance_receipts')
+    .insert({
+      finance_entry_id: row.financeEntryId,
+      storage_path: row.storagePath,
+      file_name: row.fileName,
+      mime_type: row.mimeType,
+      file_size: row.fileSize,
+    })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return toFinanceReceipt(data);
+}
+
+export async function deleteFinanceReceipt(receiptId: string): Promise<FinanceReceipt | null> {
+  const supabase = createAdminClient();
+  const { data: existing, error: fetchError } = await supabase
+    .from('finance_receipts')
+    .select('*')
+    .eq('id', receiptId)
+    .maybeSingle();
+  if (fetchError) throw fetchError;
+  if (!existing) return null;
+
+  const { error } = await supabase.from('finance_receipts').delete().eq('id', receiptId);
+  if (error) throw error;
+
+  try {
+    await supabase.storage.from(FINANCE_RECEIPTS_BUCKET).remove([String(existing.storage_path)]);
+  } catch {
+    // ignora falha ao remover arquivo
+  }
+
+  return toFinanceReceipt(existing);
+}
+
+export async function deleteFinanceReceiptsForEntry(entryId: string): Promise<void> {
+  const supabase = createAdminClient();
+  const { data: receipts, error } = await supabase
+    .from('finance_receipts')
+    .select('storage_path')
+    .eq('finance_entry_id', entryId);
+  if (error) throw error;
+
+  if (receipts?.length) {
+    const paths = receipts.map((r) => String(r.storage_path)).filter(Boolean);
+    if (paths.length) {
+      try {
+        await supabase.storage.from(FINANCE_RECEIPTS_BUCKET).remove(paths);
+      } catch {
+        // ignora falha ao remover arquivos
+      }
+    }
+  }
+
+  await supabase.from('finance_receipts').delete().eq('finance_entry_id', entryId);
+}
+
+export async function downloadFinanceReceiptFile(storagePath: string): Promise<{ buffer: Buffer; contentType: string }> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.storage.from(FINANCE_RECEIPTS_BUCKET).download(storagePath);
+  if (error || !data) throw error ?? new Error('Arquivo não encontrado');
+  const buffer = Buffer.from(await data.arrayBuffer());
+  return { buffer, contentType: data.type || 'application/octet-stream' };
 }
 
 // ---------- Roll calls ----------
@@ -530,7 +648,115 @@ export async function getCandidates(): Promise<MembershipCandidate[]> {
   const supabase = createAdminClient();
   const { data, error } = await supabase.from('membership_candidates').select('*').order('created_at', { ascending: false });
   if (error) throw error;
-  return (data || []).map(toCandidate);
+  const candidates = (data || []).map(toCandidate);
+  const docs = await getAllCandidateDocuments();
+  const byCandidate = new Map<string, CandidateDocument[]>();
+  for (const doc of docs) {
+    const list = byCandidate.get(doc.candidateId) || [];
+    list.push(doc);
+    byCandidate.set(doc.candidateId, list);
+  }
+  return candidates.map((c) => ({ ...c, documents: byCandidate.get(c.id) || [] }));
+}
+
+export async function getAllCandidateDocuments(): Promise<CandidateDocument[]> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.from('candidate_documents').select('*').order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data || []).map(toCandidateDocument);
+}
+
+export async function getCandidateDocuments(candidateId: string): Promise<CandidateDocument[]> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('candidate_documents')
+    .select('*')
+    .eq('candidate_id', candidateId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data || []).map(toCandidateDocument);
+}
+
+export async function getCandidateDocumentByType(candidateId: string, docType: string): Promise<(CandidateDocument & { storagePath: string }) | null> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('candidate_documents')
+    .select('*')
+    .eq('candidate_id', candidateId)
+    .eq('doc_type', docType)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return { ...toCandidateDocument(data), storagePath: String(data.storage_path) };
+}
+
+export async function upsertCandidateDocument(row: {
+  candidateId: string;
+  docType: string;
+  storagePath: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  uploadedBy?: string;
+}): Promise<CandidateDocument> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('candidate_documents')
+    .upsert(
+      {
+        candidate_id: row.candidateId,
+        doc_type: row.docType,
+        storage_path: row.storagePath,
+        file_name: row.fileName,
+        mime_type: row.mimeType,
+        file_size: row.fileSize,
+        uploaded_by: row.uploadedBy ?? null,
+      },
+      { onConflict: 'candidate_id,doc_type' }
+    )
+    .select('*')
+    .single();
+  if (error) throw error;
+  return toCandidateDocument(data);
+}
+
+export async function deleteCandidateDocument(candidateId: string, docType: string): Promise<void> {
+  const supabase = createAdminClient();
+  const existing = await getCandidateDocumentByType(candidateId, docType);
+  if (!existing) return;
+  await supabase.from('candidate_documents').delete().eq('candidate_id', candidateId).eq('doc_type', docType);
+  try {
+    await supabase.storage.from(CANDIDATE_DOCUMENTS_BUCKET).remove([existing.storagePath]);
+  } catch {
+    // ignora
+  }
+}
+
+export async function deleteAllCandidateDocuments(candidateId: string): Promise<void> {
+  const supabase = createAdminClient();
+  const { data: docs } = await supabase
+    .from('candidate_documents')
+    .select('storage_path')
+    .eq('candidate_id', candidateId);
+  if (docs?.length) {
+    const paths = docs.map((d) => String(d.storage_path)).filter(Boolean);
+    if (paths.length) {
+      try {
+        await supabase.storage.from(CANDIDATE_DOCUMENTS_BUCKET).remove(paths);
+      } catch {
+        // ignora
+      }
+    }
+  }
+  await supabase.from('candidate_documents').delete().eq('candidate_id', candidateId);
+}
+
+export async function downloadCandidateDocumentFile(storagePath: string): Promise<{ buffer: Buffer; contentType: string }> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.storage.from(CANDIDATE_DOCUMENTS_BUCKET).download(storagePath);
+  if (error || !data) throw error ?? new Error('Arquivo não encontrado');
+  const buffer = Buffer.from(await data.arrayBuffer());
+  return { buffer, contentType: data.type || 'application/octet-stream' };
 }
 
 export async function insertCandidate(c: Omit<MembershipCandidate, 'id'>): Promise<MembershipCandidate> {
@@ -571,6 +797,7 @@ export async function updateCandidate(id: string, partial: Partial<MembershipCan
   if (partial.interestReason !== undefined) row.interest_reason = partial.interestReason;
   if (partial.readByMc !== undefined) row.read_by_mc = partial.readByMc;
   if (partial.readByFirstCounselor !== undefined) row.read_by_first_counselor = partial.readByFirstCounselor;
+  if (partial.sindicanciaResumo !== undefined) row.sindicancia_resumo = partial.sindicanciaResumo || null;
   const { data, error } = await supabase.from('membership_candidates').update(row).eq('id', id).select('*').single();
   if (error) throw error;
   return toCandidate(data);
@@ -578,6 +805,7 @@ export async function updateCandidate(id: string, partial: Partial<MembershipCan
 
 export async function deleteCandidate(id: string): Promise<void> {
   const supabase = createAdminClient();
+  await deleteAllCandidateDocuments(id);
   const { error } = await supabase.from('membership_candidates').delete().eq('id', id);
   if (error) throw error;
 }

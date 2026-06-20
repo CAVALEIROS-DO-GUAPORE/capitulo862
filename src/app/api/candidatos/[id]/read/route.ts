@@ -1,10 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
+import { canViewCandidates } from '@/lib/candidatos-auth';
 import { getCandidates, updateCandidate } from '@/lib/data';
 
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!(await canViewCandidates(request))) {
+    return NextResponse.json({ error: 'Sem permissão' }, { status: 403 });
+  }
+
   try {
     const { id } = await params;
     const body = await request.json();

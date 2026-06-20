@@ -1,19 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { createAuthenticatedClient } from '@/lib/supabase/api-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireRoles, NEWS_EDITOR_ROLES } from '@/lib/panel-auth';
 
 const BUCKET = 'news-images';
 
 export async function POST(request: NextRequest) {
-  const supabase = createAuthenticatedClient(request);
-  if (!supabase) {
-    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-  }
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-  }
+  const auth = await requireRoles(request, NEWS_EDITOR_ROLES);
+  if (!auth.ok) return auth.response;
 
   const formData = await request.formData();
   const file = formData.get('file') as File | null;

@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
@@ -10,7 +9,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const [maintenanceActive, setMaintenanceActive] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/settings/maintenance')
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => setMaintenanceActive(data?.maintenanceEnabled === true))
+      .catch(() => {});
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -87,12 +93,9 @@ export default function LoginPage() {
         mustChangePassword: mustChangePassword,
       }));
 
-      if (mustChangePassword) {
-        router.push('/painel/perfil?trocar=1');
-      } else {
-        router.push('/painel');
-      }
-      router.refresh();
+      const target = mustChangePassword ? '/painel/perfil?trocar=1' : '/painel';
+      // Navegação completa garante que os cookies de sessão cheguem ao middleware
+      window.location.href = target;
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       if (msg === 'Failed to fetch' || msg.includes('fetch') || msg.includes('network')) {
@@ -113,7 +116,9 @@ export default function LoginPage() {
             Área do Membro
           </h1>
           <p className="text-slate-600 text-center mb-8 text-sm">
-            Entre com seu email e senha para acessar o painel interno.
+            {maintenanceActive
+              ? 'Site em manutenção. Apenas o administrador pode entrar para testes.'
+              : 'Entre com seu email e senha para acessar o painel interno.'}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -159,9 +164,15 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-slate-500 text-sm">
-          <Link href="/" className="text-blue-600 hover:underline">
-            ← Voltar ao início
-          </Link>
+          {maintenanceActive ? (
+            <Link href="/manutencao" className="text-blue-600 hover:underline">
+              ← Voltar à página de manutenção
+            </Link>
+          ) : (
+            <Link href="/" className="text-blue-600 hover:underline">
+              ← Voltar ao início
+            </Link>
+          )}
         </p>
       </div>
     </div>

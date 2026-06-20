@@ -22,6 +22,12 @@ export {
   insertFinanceEntry,
   updateFinanceEntry,
   deleteFinanceEntry,
+  getFinanceReceipts,
+  insertFinanceReceipt,
+  deleteFinanceReceipt,
+  deleteFinanceReceiptsForEntry,
+  downloadFinanceReceiptFile,
+  FINANCE_RECEIPTS_BUCKET,
   getRollCalls,
   getRollCallByDate,
   getRollCallsByYearAndGestao,
@@ -30,6 +36,12 @@ export {
   insertCandidate,
   updateCandidate,
   deleteCandidate,
+  getCandidateDocuments,
+  getCandidateDocumentByType,
+  upsertCandidateDocument,
+  deleteCandidateDocument,
+  downloadCandidateDocumentFile,
+  CANDIDATE_DOCUMENTS_BUCKET,
 } from './supabase-data';
 
 export function generateId() {

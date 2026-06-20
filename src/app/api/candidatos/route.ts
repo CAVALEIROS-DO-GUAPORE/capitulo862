@@ -1,7 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
+import { canViewCandidates } from '@/lib/candidatos-auth';
 import { getCandidates, insertCandidate } from '@/lib/data';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!(await canViewCandidates(request))) {
+    return NextResponse.json({ error: 'Sem permissão' }, { status: 403 });
+  }
   try {
     const candidates = await getCandidates();
     return NextResponse.json(candidates);
