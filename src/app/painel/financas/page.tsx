@@ -65,7 +65,7 @@ export default function PainelFinancasPage() {
     }
   }, []);
 
-  const loadEntries = useCallback(function loadEntries() {
+  const loadEntries = useCallback(async function loadEntries() {
     const params = new URLSearchParams();
     if (filtroData) params.set('data', filtroData);
     else if (filtroAno) {
@@ -73,18 +73,27 @@ export default function PainelFinancasPage() {
       if (filtroMes) params.set('mes', filtroMes);
     }
     const qs = params.toString();
-    fetch(`/api/finance${qs ? `?${qs}` : ''}`)
-      .then((r) => r.json())
-      .then((data) => setEntries(Array.isArray(data) ? data : []))
-      .catch(() => setEntries([]))
-      .finally(() => setLoading(false));
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/finance${qs ? `?${qs}` : ''}`, { headers, credentials: 'include' });
+      const data = await res.json();
+      setEntries(res.ok && Array.isArray(data) ? data : []);
+    } catch {
+      setEntries([]);
+    } finally {
+      setLoading(false);
+    }
   }, [filtroAno, filtroMes, filtroData]);
 
-  const loadEntriesAll = useCallback(function loadEntriesAll() {
-    fetch('/api/finance')
-      .then((r) => r.json())
-      .then((data) => setEntriesAll(Array.isArray(data) ? data : []))
-      .catch(() => setEntriesAll([]));
+  const loadEntriesAll = useCallback(async function loadEntriesAll() {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/finance', { headers, credentials: 'include' });
+      const data = await res.json();
+      setEntriesAll(res.ok && Array.isArray(data) ? data : []);
+    } catch {
+      setEntriesAll([]);
+    }
   }, []);
 
   useEffect(() => {
@@ -290,7 +299,7 @@ export default function PainelFinancasPage() {
     });
     if (!ok) return;
     try {
-      const res = await fetch(`/api/finance/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/finance/${id}`, { method: 'DELETE', headers: await getAuthHeaders() });
       if (!res.ok) throw new Error('Erro ao excluir');
       loadEntries();
       loadEntriesAll();

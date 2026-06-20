@@ -14,7 +14,7 @@ const CATEGORIES = [
 ];
 
 const ROLES_BY_CATEGORY: Record<string, string[]> = {
-  demolays: ['Mestre Conselheiro', '1º Conselheiro', '2º Conselheiro', 'Escrivão', 'Hospitaleiro', 'Tesoureiro', 'Orador', '1º Diácono', '2º Diácono', 'Mestre de Cerimônias', 'Capitão da Guarda', 'Membro'],
+  demolays: ['Mestre Conselheiro', '1º Conselheiro', '2º Conselheiro', 'Escrivão', 'Hospitaleiro', 'Tesoureiro', 'Orador', 'Membro'],
   seniores: ['Presidente', 'Vice-Presidente', 'Secretário', 'Tesoureiro', 'Membro'],
   consultores: ['Presidente', 'Membro Organizador', 'Consultor', 'Membro'],
   escudeiros: ['Mestre Escudeiro', '1º Escudeiro', '2º Escudeiro', 'Escudeiro'],
@@ -347,133 +347,140 @@ export default function PainelMembrosPage() {
       )}
 
       {modal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h2 className="text-lg font-bold text-blue-800 mb-4">
-              {editing ? 'Editar Membro' : 'Cadastrar Membro'}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-slate-700 text-sm mb-1">Nome *</label>
-                <input
-                  type="text"
-                  required
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-slate-700 text-sm mb-1">Cargo *</label>
-                <select
-                  value={form.role}
-                  onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                  required
-                >
-                  <option value="">Selecione o cargo</option>
-                  {[
-                    ...(form.role && !(ROLES_BY_CATEGORY[form.category] ?? []).includes(form.role) ? [form.role] : []),
-                    ...(ROLES_BY_CATEGORY[form.category] ?? []),
-                  ].map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
-                {form.role && !(ROLES_BY_CATEGORY[form.category] ?? []).includes(form.role) && (
-                  <p className="text-amber-600 text-xs mt-1">Selecione &quot;1º Conselheiro&quot; ou &quot;2º Conselheiro&quot; para aparecer na diretoria na página Nossos Membros.</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-slate-700 text-sm mb-1">Categoria principal *</label>
-                <select
-                  value={form.category}
-                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as Member['category'] }))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-slate-700 text-sm mb-1">Outras categorias/cargos (ex.: também Consultor)</label>
-                <p className="text-slate-500 text-xs mb-2">Quem é de mais de uma categoria (ex.: Sênior + Consultor) adiciona aqui, sem duplicar a pessoa.</p>
-                {form.additionalRoles.map((r, i) => (
-                  <div key={i} className="flex gap-2 mb-2">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[92vh] flex flex-col">
+            <div className="px-4 pt-4 pb-2 shrink-0 border-b border-slate-100">
+              <h2 className="text-base font-bold text-blue-800">
+                {editing ? 'Editar Membro' : 'Cadastrar Membro'}
+              </h2>
+            </div>
+            <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
+              <div className="px-4 py-3 overflow-y-auto space-y-3 flex-1">
+                <div>
+                  <label className="block text-slate-700 text-xs font-medium mb-1">Nome *</label>
+                  <input
+                    type="text"
+                    required
+                    value={form.name}
+                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                    className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-700 text-xs font-medium mb-1">Categoria *</label>
                     <select
-                      value={r.category}
-                      onChange={(e) => updateAdditionalRole(i, 'category', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg"
+                      value={form.category}
+                      onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as Member['category'] }))}
+                      className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg"
                     >
-                      {CATEGORIES.filter(
-                        (c) =>
-                          c.value === r.category ||
-                          (c.value !== form.category && !form.additionalRoles.some((o, j) => j !== i && o.category === c.value))
-                      ).map((c) => (
+                      {CATEGORIES.map((c) => (
                         <option key={c.value} value={c.value}>{c.label}</option>
                       ))}
                     </select>
-                    <input
-                      type="text"
-                      value={r.role}
-                      onChange={(e) => updateAdditionalRole(i, 'role', e.target.value)}
-                      placeholder="Cargo"
-                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg"
-                    />
-                    <button type="button" onClick={() => removeAdditionalRole(i)} className="px-2 py-1 text-red-600 hover:bg-red-50 rounded">×</button>
                   </div>
-                ))}
-                {form.additionalRoles.length < CATEGORIES.length - 1 && (
-                  <button type="button" onClick={addAdditionalRole} className="text-sm text-blue-600 hover:underline">
-                    + Adicionar outra categoria/cargo
-                  </button>
+                  <div>
+                    <label className="block text-slate-700 text-xs font-medium mb-1">Cargo *</label>
+                    <select
+                      value={form.role}
+                      onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+                      className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg"
+                      required
+                    >
+                      <option value="">Selecione</option>
+                      {[
+                        ...(form.role && !(ROLES_BY_CATEGORY[form.category] ?? []).includes(form.role) ? [form.role] : []),
+                        ...(ROLES_BY_CATEGORY[form.category] ?? []),
+                      ].map((r) => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {form.role && !(ROLES_BY_CATEGORY[form.category] ?? []).includes(form.role) && (
+                  <p className="text-amber-600 text-xs -mt-1">Use &quot;1º Conselheiro&quot; ou &quot;2º Conselheiro&quot; para aparecer na diretoria.</p>
                 )}
+                <div>
+                  <label className="block text-slate-700 text-xs font-medium mb-1">Outras categorias/cargos</label>
+                  <p className="text-slate-500 text-xs mb-1.5">Ex.: Sênior que também é Consultor.</p>
+                  {form.additionalRoles.map((r, i) => (
+                    <div key={i} className="flex gap-1.5 mb-1.5">
+                      <select
+                        value={r.category}
+                        onChange={(e) => updateAdditionalRole(i, 'category', e.target.value)}
+                        className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-slate-300 rounded-lg"
+                      >
+                        {CATEGORIES.filter(
+                          (c) =>
+                            c.value === r.category ||
+                            (c.value !== form.category && !form.additionalRoles.some((o, j) => j !== i && o.category === c.value))
+                        ).map((c) => (
+                          <option key={c.value} value={c.value}>{c.label}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        value={r.role}
+                        onChange={(e) => updateAdditionalRole(i, 'role', e.target.value)}
+                        placeholder="Cargo"
+                        className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-slate-300 rounded-lg"
+                      />
+                      <button type="button" onClick={() => removeAdditionalRole(i)} className="px-2 text-red-600 hover:bg-red-50 rounded shrink-0">×</button>
+                    </div>
+                  ))}
+                  {form.additionalRoles.length < CATEGORIES.length - 1 && (
+                    <button type="button" onClick={addAdditionalRole} className="text-xs text-blue-600 hover:underline">
+                      + Outra categoria/cargo
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-700 text-xs font-medium mb-1">ID</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.identifier}
+                      onChange={(e) => setForm((f) => ({ ...f, identifier: parseInt(e.target.value, 10) || 0 }))}
+                      className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 text-xs font-medium mb-1">Ordem</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.order}
+                      onChange={(e) => setForm((f) => ({ ...f, order: parseInt(e.target.value) || 1 }))}
+                      className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-slate-700 text-xs font-medium mb-1">Telefone (opcional)</label>
+                    <input
+                      type="tel"
+                      value={form.phone}
+                      onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                      className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg"
+                      placeholder="(00) 00000-0000"
+                    />
+                  </div>
+                </div>
+                {error && <p className="text-red-600 text-xs">{error}</p>}
               </div>
-              <div>
-                <label className="block text-slate-700 text-sm mb-1">ID (número identificador)</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={form.identifier}
-                  onChange={(e) => setForm((f) => ({ ...f, identifier: parseInt(e.target.value, 10) || 0 }))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                  placeholder="0"
-                />
-                <p className="text-slate-500 text-xs mt-1">Use 0 se ainda não tiver número definido.</p>
-              </div>
-              <div>
-                <label className="block text-slate-700 text-sm mb-1">Telefone (opcional)</label>
-                <input
-                  type="tel"
-                  value={form.phone}
-                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                  placeholder="(00) 00000-0000"
-                />
-              </div>
-              <div>
-                <label className="block text-slate-700 text-sm mb-1">Ordem</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={form.order}
-                  onChange={(e) => setForm((f) => ({ ...f, order: parseInt(e.target.value) || 1 }))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                />
-              </div>
-              {error && <p className="text-red-600 text-sm">{error}</p>}
-              <div className="flex gap-2 pt-2">
+              <div className="px-4 py-3 border-t border-slate-100 shrink-0 flex gap-2">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="flex-1 py-2 border border-slate-300 rounded-lg text-slate-700"
+                  className="flex-1 py-2 text-sm border border-slate-300 rounded-lg text-slate-700"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
+                  className="flex-1 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
                 >
                   {saving ? 'Salvando...' : 'Salvar'}
                 </button>

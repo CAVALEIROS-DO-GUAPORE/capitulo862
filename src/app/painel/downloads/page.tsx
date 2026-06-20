@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { CANDIDATURA_DOWNLOAD_DEFS } from '@/lib/candidaturas-downloads';
+import { CERIMONIA_DOWNLOAD_DEFS } from '@/lib/cerimonias-downloads';
 
 const ROLES_PAUTAS = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'escrivao'];
 /** Quem pode acessar a página de Downloads e baixar arquivos. Tesoureiro incluído. */
@@ -11,6 +13,9 @@ const ROLES_DOWNLOADS = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 
 const CATEGORIA_CANETA_OURO = 'Caneta de Ouro';
 const CATEGORIA_CNIE = 'CNIE';
 const CATEGORIA_CRN = 'CRN';
+const CATEGORIA_EDITAIS = 'Editais';
+const CATEGORIA_CERIMONIAS = 'Cerimônias';
+const CATEGORIA_CANDIDATURAS = 'Candidaturas';
 
 interface DownloadItem {
   id: string;
@@ -136,16 +141,47 @@ const DOWNLOADS: DownloadItem[] = [
     filename: 'relatorio_arrecadacao_crn.xlsx',
     category: CATEGORIA_CRN,
   },
+  ...CANDIDATURA_DOWNLOAD_DEFS.map((doc) => ({
+    id: doc.slug,
+    label: doc.label,
+    description: doc.description,
+    endpoint: `/api/downloads/candidaturas/${doc.slug}`,
+    filename: doc.downloadFilename,
+    category: CATEGORIA_CANDIDATURAS,
+  })),
+  ...CERIMONIA_DOWNLOAD_DEFS.map((c) => ({
+    id: c.slug,
+    label: c.label,
+    description: c.description,
+    endpoint: `/api/downloads/cerimonias/${c.slug}`,
+    filename: c.downloadFilename,
+    category: CATEGORIA_CERIMONIAS,
+  })),
 ];
 
-const CATEGORIAS = [CATEGORIA_CANETA_OURO, CATEGORIA_CNIE, CATEGORIA_CRN] as const;
+const CATEGORIAS = [
+  CATEGORIA_CANETA_OURO,
+  CATEGORIA_CNIE,
+  CATEGORIA_CRN,
+  CATEGORIA_EDITAIS,
+  CATEGORIA_CERIMONIAS,
+  CATEGORIA_CANDIDATURAS,
+] as const;
 type CategoriaFiltro = typeof CATEGORIAS[number] | 'Todos';
 
 export default function DownloadsPage() {
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [categoriaFiltro, setCategoriaFiltro] = useState<CategoriaFiltro>(CATEGORIA_CANETA_OURO);
-  const categoriasList: CategoriaFiltro[] = [CATEGORIA_CANETA_OURO, CATEGORIA_CNIE, CATEGORIA_CRN, 'Todos'];
+  const categoriasList: CategoriaFiltro[] = [
+    CATEGORIA_CANETA_OURO,
+    CATEGORIA_CNIE,
+    CATEGORIA_CRN,
+    CATEGORIA_EDITAIS,
+    CATEGORIA_CERIMONIAS,
+    CATEGORIA_CANDIDATURAS,
+    'Todos',
+  ];
   const router = useRouter();
 
   useEffect(() => {
@@ -264,37 +300,43 @@ export default function DownloadsPage() {
       </div>
 
       <div className="grid gap-4">
-        {itensFiltrados.map((item) => {
-          const allowed = canDownload(item);
-          return (
-            <div
-              key={item.id}
-              className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-white rounded-lg border border-slate-200"
-            >
-              <div>
-                <h2 className="font-semibold text-slate-800">{item.label}</h2>
-                <p className="text-sm text-slate-500 mt-1">{item.description}</p>
-                {item.requiredRole && !allowed && (
-                  <p className="text-sm text-amber-600 mt-1">
-                    Disponível apenas para: Escrivão, Mestre Conselheiro, 1º Conselheiro e Admin.
-                  </p>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => handleDownload(item)}
-                disabled={!allowed}
-                className={`shrink-0 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
-                  allowed
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-slate-200 text-slate-500 cursor-not-allowed'
-                }`}
+        {itensFiltrados.length === 0 ? (
+          <p className="py-10 text-center text-slate-500 bg-white rounded-lg border border-slate-200">
+            Nenhum arquivo disponível em <strong className="text-slate-700">{categoriaFiltro}</strong> no momento.
+          </p>
+        ) : (
+          itensFiltrados.map((item) => {
+            const allowed = canDownload(item);
+            return (
+              <div
+                key={item.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-white rounded-lg border border-slate-200"
               >
-                Baixar
-              </button>
-            </div>
-          );
-        })}
+                <div>
+                  <h2 className="font-semibold text-slate-800">{item.label}</h2>
+                  <p className="text-sm text-slate-500 mt-1">{item.description}</p>
+                  {item.requiredRole && !allowed && (
+                    <p className="text-sm text-amber-600 mt-1">
+                      Disponível apenas para: Escrivão, Mestre Conselheiro, 1º Conselheiro e Admin.
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDownload(item)}
+                  disabled={!allowed}
+                  className={`shrink-0 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
+                    allowed
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                  }`}
+                >
+                  Baixar
+                </button>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

@@ -441,22 +441,35 @@ export interface GetFinanceEntriesOptions {
 
 export async function getFinanceEntries(opts?: GetFinanceEntriesOptions): Promise<FinanceEntry[]> {
   const supabase = createAdminClient();
-  let query = supabase.from('finance_entries').select('*, finance_receipts(count)');
-  if (opts?.data) {
-    query = query.eq('date', opts.data);
-  } else if (opts?.ano != null) {
-    const start = `${opts.ano}-01-01`;
-    const end = `${opts.ano}-12-31`;
-    if (opts.mes != null) {
-      const m = String(opts.mes).padStart(2, '0');
-      const lastDay = new Date(opts.ano, opts.mes, 0).getDate();
-      const endMonth = `${opts.ano}-${m}-${String(lastDay).padStart(2, '0')}`;
-      query = query.gte('date', `${opts.ano}-${m}-01`).lte('date', endMonth);
-    } else {
-      query = query.gte('date', start).lte('date', end);
+
+  // Tipagem do query builder do supabase-js pode ficar "profunda" demais aqui.
+  // Mantemos como `any` para evitar erro de compilação (Type instantiation excessively deep).
+  function applyFilters(query: any): any {
+    if (opts?.data) {
+      return query.eq('date', opts.data);
     }
+    if (opts?.ano != null) {
+      if (opts.mes != null) {
+        const m = String(opts.mes).padStart(2, '0');
+        const lastDay = new Date(opts.ano, opts.mes, 0).getDate();
+        const endMonth = `${opts.ano}-${m}-${String(lastDay).padStart(2, '0')}`;
+        return query.gte('date', `${opts.ano}-${m}-01`).lte('date', endMonth);
+      }
+      return query.gte('date', `${opts.ano}-01-01`).lte('date', `${opts.ano}-12-31`);
+    }
+    return query;
   }
-  const { data, error } = await query.order('date', { ascending: false });
+
+  let query = applyFilters(supabase.from('finance_entries').select('*, finance_receipts(count)'));
+  let { data, error } = await query.order('date', { ascending: false });
+
+  if (error) {
+    const fallback = applyFilters(supabase.from('finance_entries').select('*'));
+    const retry = await fallback.order('date', { ascending: false });
+    data = retry.data;
+    error = retry.error;
+  }
+
   if (error) throw error;
   return (data || []).map(toFinanceEntry);
 }

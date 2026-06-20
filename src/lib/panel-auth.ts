@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { User } from '@supabase/supabase-js';
 import { createAuthenticatedClient } from '@/lib/supabase/api-auth';
+import { createRouteHandlerSupabaseClient } from '@/lib/supabase/route-handler-client';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { MANAGER_ROLES } from '@/lib/auth-constants';
 
@@ -28,13 +29,20 @@ export async function getActiveProfileRole(userId: string): Promise<string | nul
   return profile.role as string;
 }
 
-export async function requirePanelUser(request: NextRequest): Promise<PanelAuthResult> {
-  const supabase = createAuthenticatedClient(request);
-  if (!supabase) {
-    return { ok: false, response: NextResponse.json({ error: 'Não autorizado' }, { status: 401 }) };
+export async function getRequestUser(request: NextRequest): Promise<User | null> {
+  const bearerClient = createAuthenticatedClient(request);
+  if (bearerClient) {
+    const { data: { user } } = await bearerClient.auth.getUser();
+    if (user) return user;
   }
 
+  const supabase = createRouteHandlerSupabaseClient(request);
   const { data: { user } } = await supabase.auth.getUser();
+  return user ?? null;
+}
+
+export async function requirePanelUser(request: NextRequest): Promise<PanelAuthResult> {
+  const user = await getRequestUser(request);
   if (!user) {
     return { ok: false, response: NextResponse.json({ error: 'Não autorizado' }, { status: 401 }) };
   }

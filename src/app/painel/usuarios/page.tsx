@@ -17,6 +17,14 @@ const PANEL_ROLES = [
 const INVITE_PASSWORD_NOTE =
   'Informe a senha inicial ao membro por um canal seguro (pessoalmente ou WhatsApp). Ele deve alterá-la em Perfil após o primeiro acesso.';
 
+type UsuariosTab = 'lista' | 'senha' | 'criar';
+
+const TABS: { id: UsuariosTab; label: string }[] = [
+  { id: 'lista', label: 'Lista de Usuários' },
+  { id: 'senha', label: 'Editar Senha' },
+  { id: 'criar', label: 'Criar Usuário' },
+];
+
 interface UserItem {
   id: string;
   email: string | null;
@@ -43,6 +51,7 @@ export default function PainelUsuariosPage() {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [tab, setTab] = useState<UsuariosTab>('lista');
 
   const canCreateUser = user?.role && ['admin', 'mestre_conselheiro', 'primeiro_conselheiro'].includes(user.role);
   const canResetPassword = canCreateUser;
@@ -193,6 +202,8 @@ export default function PainelUsuariosPage() {
       setEmail('');
       setName('');
       setRole('membro');
+      loadUsers();
+      setTab('lista');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro');
     } finally {
@@ -224,6 +235,14 @@ export default function PainelUsuariosPage() {
     }
   }
 
+  function openResetForUser(u: UserItem) {
+    setResetEmail(u.email || '');
+    setResetPassword('');
+    setResetError('');
+    setResetSuccess('');
+    setTab('senha');
+  }
+
   if (!user || !canCreateUser) {
     return (
       <div>
@@ -233,15 +252,52 @@ export default function PainelUsuariosPage() {
   }
 
   return (
-    <div className="space-y-10">
-      {canManageUsers && (
-        <div className="border-b border-slate-200 pb-10">
-          <h2 className="text-xl font-bold text-blue-800 mb-4">Usuários cadastrados</h2>
+    <div>
+      <h1 className="text-2xl font-bold text-blue-800 mb-4">Usuários</h1>
+      <p className="text-slate-600 mb-4 text-sm">
+        Gerencie contas de acesso ao painel, cargos e senhas.
+      </p>
+
+      <div
+        className="flex gap-1 mb-6 border-b border-slate-200 overflow-x-auto"
+        role="tablist"
+        aria-label="Seções de usuários"
+      >
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => {
+              setTab(t.id);
+              if (t.id === 'criar') {
+                setError('');
+                setSuccess('');
+              }
+              if (t.id === 'senha') {
+                setResetError('');
+                setResetSuccess('');
+              }
+            }}
+            className={`shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              tab === t.id
+                ? 'border-blue-600 text-blue-700'
+                : 'border-transparent text-slate-600 hover:text-blue-600 hover:border-slate-300'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'lista' && (
+        <div role="tabpanel">
           {usersLoading ? (
             <p className="text-slate-500">Carregando...</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border border-slate-200 rounded-lg overflow-hidden">
+            <div className="overflow-x-auto bg-white rounded-lg border border-slate-200 shadow-sm">
+              <table className="w-full border-collapse">
                 <thead className="bg-slate-50">
                   <tr>
                     <th className="text-left px-4 py-3 text-sm font-semibold text-slate-700">Nome</th>
@@ -274,8 +330,16 @@ export default function PainelUsuariosPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end flex-wrap gap-2">
                           <button
+                            type="button"
+                            onClick={() => openResetForUser(u)}
+                            className="px-3 py-1 text-sm rounded border border-blue-600 text-blue-700 hover:bg-blue-50"
+                          >
+                            Senha
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleToggleActive(u)}
                             disabled={actionLoading === u.id}
                             className="px-3 py-1 text-sm rounded border border-amber-600 text-amber-700 hover:bg-amber-50 disabled:opacity-50"
@@ -283,6 +347,7 @@ export default function PainelUsuariosPage() {
                             {actionLoading === u.id ? '...' : u.active !== false ? 'Inativar' : 'Ativar'}
                           </button>
                           <button
+                            type="button"
                             onClick={() => handleDelete(u)}
                             disabled={actionLoading === u.id}
                             className="px-3 py-1 text-sm rounded border border-red-600 text-red-600 hover:bg-red-50 disabled:opacity-50"
@@ -296,80 +361,92 @@ export default function PainelUsuariosPage() {
                 </tbody>
               </table>
               {users.length === 0 && (
-                <p className="py-8 text-center text-slate-500 bg-white border border-slate-200 rounded-lg">Nenhum usuário cadastrado.</p>
+                <p className="py-8 text-center text-slate-500">Nenhum usuário cadastrado.</p>
               )}
             </div>
           )}
         </div>
       )}
 
-      <div>
-        <h1 className="text-2xl font-bold text-blue-800 mb-6">Cadastrar usuário</h1>
-        <p className="text-slate-600 mb-6">
-          Cadastro de usuários do painel. Após criar a conta, informe a senha inicial ao membro por um canal seguro (pessoalmente ou WhatsApp). Ele deve alterá-la em Perfil após o primeiro acesso.
-        </p>
-
-        <form onSubmit={handleSubmit} className="max-w-md space-y-4">
-        <div>
-          <label className="block text-slate-700 text-sm font-medium mb-1">Email *</label>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-            placeholder="usuario@email.com"
-          />
-        </div>
-        <div>
-          <label className="block text-slate-700 text-sm font-medium mb-1">Nome (opcional)</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-            placeholder="Nome do usuário"
-          />
-        </div>
-        <div>
-          <label className="block text-slate-700 text-sm font-medium mb-1">Cargo no painel</label>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-          >
-            {PANEL_ROLES.filter((r) => user?.role !== 'mestre_conselheiro' || r.value !== 'admin').map((r) => (
-              <option key={r.value} value={r.value}>{r.label}</option>
-            ))}
-          </select>
-        </div>
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        {success && <p className="text-green-600 text-sm">{success}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-lg"
-        >
-          {loading ? 'Cadastrando...' : 'Cadastrar usuário'}
-        </button>
-      </form>
-      </div>
-
-      {canResetPassword && (
-        <div className="border-t border-slate-200 pt-10">
-          <h2 className="text-xl font-bold text-blue-800 mb-2">Redefinir senha de usuário</h2>
-          <p className="text-slate-600 mb-4">
-            Redefinir a senha de um usuário pelo email.
+      {tab === 'criar' && (
+        <div role="tabpanel" className="max-w-md">
+          <p className="text-slate-600 mb-4 text-sm">
+            Após criar a conta, informe a senha inicial ao membro por um canal seguro (pessoalmente ou WhatsApp). Ele deve alterá-la em Perfil após o primeiro acesso.
           </p>
-          <form onSubmit={handleResetPassword} className="max-w-md space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
+            <div>
+              <label className="block text-slate-700 text-sm font-medium mb-1">Email *</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                placeholder="usuario@email.com"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-700 text-sm font-medium mb-1">Nome (opcional)</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                placeholder="Nome do usuário"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-700 text-sm font-medium mb-1">Cargo no painel</label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+              >
+                {PANEL_ROLES.filter((r) => user?.role !== 'mestre_conselheiro' || r.value !== 'admin').map((r) => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+            </div>
+            {error && <p className="text-red-600 text-sm">{error}</p>}
+            {success && <p className="text-green-600 text-sm">{success}</p>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-lg"
+            >
+              {loading ? 'Cadastrando...' : 'Cadastrar usuário'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {tab === 'senha' && canResetPassword && (
+        <div role="tabpanel" className="max-w-md">
+          <p className="text-slate-600 mb-4 text-sm">
+            Defina uma nova senha para o usuário pelo email cadastrado.
+          </p>
+          <form onSubmit={handleResetPassword} className="space-y-4 bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
             <div>
               <label className="block text-slate-700 text-sm font-medium mb-1">Email do usuário *</label>
+              <select
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                required
+              >
+                <option value="">Selecione ou digite abaixo</option>
+                {users.filter((u) => u.email).map((u) => (
+                  <option key={u.id} value={u.email!}>
+                    {u.name ? `${u.name} (${u.email})` : u.email}
+                  </option>
+                ))}
+              </select>
               <input
                 type="email"
                 required
                 value={resetEmail}
                 onChange={(e) => setResetEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                className="w-full mt-2 px-3 py-2 border border-slate-300 rounded-lg"
                 placeholder="usuario@email.com"
               />
             </div>
@@ -391,7 +468,7 @@ export default function PainelUsuariosPage() {
             <button
               type="submit"
               disabled={resetLoading}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold rounded-lg"
+              className="w-full py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold rounded-lg"
             >
               {resetLoading ? 'Alterando...' : 'Alterar senha'}
             </button>

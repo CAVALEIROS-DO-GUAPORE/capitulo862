@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
-import { createAuthenticatedClient } from '@/lib/supabase/api-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getRequestUser } from '@/lib/panel-auth';
 
 export const CANDIDATE_EDITOR_ROLES = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro'] as const;
 
@@ -11,10 +11,7 @@ export const CANDIDATE_VIEWER_PANEL_ROLES = [
 ] as const;
 
 export async function getAuthenticatedUser(request: NextRequest) {
-  const supabase = createAuthenticatedClient(request);
-  if (!supabase) return null;
-  const { data: { user } } = await supabase.auth.getUser();
-  return user ?? null;
+  return getRequestUser(request);
 }
 
 export async function getActiveProfileRole(userId: string): Promise<string | null> {
