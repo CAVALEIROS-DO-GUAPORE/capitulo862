@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { parseMemberBadges } from '@/lib/member-badges';
 import type { Member, News, InternalMinutes, FinanceEntry, FinanceReceipt, CalendarEvent, RollCall, MembershipCandidate, MemberAdditionalRole, CandidateDocument } from '@/types';
 
 export const FINANCE_RECEIPTS_BUCKET = 'finance-receipts';
@@ -25,6 +26,7 @@ function toMember(row: Record<string, unknown>): Member {
     phone: row.phone ? String(row.phone) : undefined,
     identifier: Number.isNaN(identifier) ? 0 : identifier,
     additionalRoles: parseAdditionalRoles(row.additional_roles),
+    badges: parseMemberBadges(row.badges),
   };
 }
 
@@ -181,6 +183,7 @@ export async function insertMember(m: Omit<Member, 'id'>): Promise<Member> {
     phone: m.phone ?? null,
     identifier: m.identifier != null ? m.identifier : 0,
     additional_roles: Array.isArray(m.additionalRoles) ? m.additionalRoles : [],
+    badges: Array.isArray(m.badges) ? m.badges : [],
   };
   const { data, error } = await supabase.from('members').insert(row).select('*').single();
   if (error) throw error;
@@ -199,6 +202,7 @@ export async function updateMember(id: string, partial: Partial<Member>): Promis
   if (partial.phone !== undefined) row.phone = partial.phone;
   if (partial.identifier !== undefined) row.identifier = partial.identifier;
   if (partial.additionalRoles !== undefined) row.additional_roles = partial.additionalRoles;
+  if (partial.badges !== undefined) row.badges = partial.badges;
   const { data, error } = await supabase.from('members').update(row).eq('id', id).select('*').single();
   if (error) throw error;
   return toMember(data);

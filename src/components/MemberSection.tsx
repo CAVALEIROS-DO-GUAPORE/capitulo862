@@ -72,14 +72,14 @@ export default function MemberSection({
               return (
                 <div className="flex flex-col items-center gap-6 max-w-2xl mx-auto">
                   <div className="flex justify-center">
-                    <MemberCard key={mc.id} name={mc.name} role={mc.role} photo={mc.photo} />
+                    <MemberCard key={mc.id} name={mc.name} role={mc.role} photo={mc.photo} badges={mc.badges} />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full">
                     <div className="flex justify-center sm:justify-end">
-                      <MemberCard key={c1.id} name={c1.name} role={c1.role} photo={c1.photo} />
+                      <MemberCard key={c1.id} name={c1.name} role={c1.role} photo={c1.photo} badges={c1.badges} />
                     </div>
                     <div className="flex justify-center sm:justify-start">
-                      <MemberCard key={c2.id} name={c2.name} role={c2.role} photo={c2.photo} />
+                      <MemberCard key={c2.id} name={c2.name} role={c2.role} photo={c2.photo} badges={c2.badges} />
                     </div>
                   </div>
                 </div>
@@ -92,6 +92,7 @@ export default function MemberSection({
                     name={member.name}
                     role={member.role}
                     photo={member.photo}
+                    badges={member.badges}
                   />
                 ))}
               </div>
@@ -110,6 +111,7 @@ export default function MemberSection({
                 name={member.name}
                 role={member.role}
                 photo={member.photo}
+                badges={member.badges}
               />
             ))}
           </div>
@@ -126,6 +128,7 @@ export default function MemberSection({
                 name={member.name}
                 role={member.role}
                 photo={member.photo}
+                badges={member.badges}
               />
             ))}
           </div>

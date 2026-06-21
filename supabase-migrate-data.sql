@@ -6,6 +6,7 @@
 -- ========== MEMBERS: coluna phone e additional_roles (múltiplas categorias/cargos por pessoa) ==========
 ALTER TABLE public.members ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE public.members ADD COLUMN IF NOT EXISTS additional_roles JSONB DEFAULT '[]';
+ALTER TABLE public.members ADD COLUMN IF NOT EXISTS badges JSONB DEFAULT '[]';
 
 -- ========== MINUTES: colunas da ata estendida ==========
 ALTER TABLE public.minutes ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'rascunho';

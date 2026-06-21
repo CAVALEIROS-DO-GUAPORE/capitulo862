@@ -4,7 +4,9 @@ import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useDialogs } from '@/components/DialogsProvider';
-import type { Member, MemberCategory, MemberAdditionalRole } from '@/types';
+import MemberBadges from '@/components/MemberBadges';
+import type { Member, MemberCategory, MemberAdditionalRole, MemberBadgeId } from '@/types';
+import type { MemberBadgeDefinition } from '@/lib/member-badges';
 
 const CATEGORIES = [
   { value: 'demolays', label: 'DeMolays' },
@@ -19,6 +21,8 @@ const ROLES_BY_CATEGORY: Record<string, string[]> = {
   consultores: ['Presidente', 'Membro Organizador', 'Consultor', 'Membro'],
   escudeiros: ['Mestre Escudeiro', '1º Escudeiro', '2º Escudeiro', 'Escudeiro'],
 };
+
+type TabId = 'lista' | 'emblemas';
 
 export default function PainelMembrosPage() {
   const { confirm, toast } = useDialogs();
@@ -47,7 +51,21 @@ export default function PainelMembrosPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [viewing, setViewing] = useState<Member | null>(null);
+  const [activeTab, setActiveTab] = useState<TabId>('lista');
+  const [canManageBadges, setCanManageBadges] = useState(false);
+  const [badgeCatalog, setBadgeCatalog] = useState<MemberBadgeDefinition[]>([]);
+  const [badgeMemberId, setBadgeMemberId] = useState('');
+  const [selectedBadges, setSelectedBadges] = useState<MemberBadgeId[]>([]);
+  const [badgeSaving, setBadgeSaving] = useState(false);
   const canManage = user?.role && ['admin', 'mestre_conselheiro', 'primeiro_conselheiro'].includes(user.role);
+
+  async function getAuthHeaders(): Promise<HeadersInit> {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+    return headers;
+  }
 
   useEffect(() => {
     const stored = sessionStorage.getItem('dm_user');
@@ -71,6 +89,20 @@ export default function PainelMembrosPage() {
   }, [loadMembers]);
 
   useEffect(() => {
+    async function loadBadgePermissions() {
+      try {
+        const headers = await getAuthHeaders();
+        const res = await fetch('/api/badges', { headers });
+        if (!res.ok) return;
+        const data = await res.json();
+        setCanManageBadges(data.canManage === true);
+        setBadgeCatalog(Array.isArray(data.badges) ? data.badges : []);
+      } catch {}
+    }
+    loadBadgePermissions();
+  }, []);
+
+  useEffect(() => {
     const supabase = createClient();
     const channel = supabase
       .channel('members-realtime')
@@ -78,6 +110,15 @@ export default function PainelMembrosPage() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [loadMembers]);
+
+  useEffect(() => {
+    if (!badgeMemberId) {
+      setSelectedBadges([]);
+      return;
+    }
+    const member = members.find((m) => m.id === badgeMemberId);
+    setSelectedBadges(member?.badges?.slice() ?? []);
+  }, [badgeMemberId, members]);
 
   function openAdd() {
     setEditing(null);
@@ -150,6 +191,37 @@ export default function PainelMembrosPage() {
     setViewing(null);
   }
 
+  function toggleBadgeSelection(badgeId: MemberBadgeId) {
+    setSelectedBadges((prev) =>
+      prev.includes(badgeId) ? prev.filter((id) => id !== badgeId) : [...prev, badgeId]
+    );
+  }
+
+  async function handleSaveBadges(e: React.FormEvent) {
+    e.preventDefault();
+    if (!badgeMemberId) {
+      toast('Selecione um membro.', 'error');
+      return;
+    }
+    setBadgeSaving(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/members/${badgeMemberId}/badges`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ badges: selectedBadges }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao salvar emblemas');
+      toast('Emblemas atualizados.', 'success');
+      loadMembers();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Erro ao salvar emblemas', 'error');
+    } finally {
+      setBadgeSaving(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -219,11 +291,13 @@ export default function PainelMembrosPage() {
     }
   }
 
+  const sortedMembers = [...members].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold text-blue-800">Gerenciar Membros</h1>
-        {canManage && (
+        {canManage && activeTab === 'lista' && (
           <button
             onClick={openAdd}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
@@ -232,76 +306,183 @@ export default function PainelMembrosPage() {
           </button>
         )}
       </div>
-      <p className="text-slate-600 mb-6">
-        Lista de membros do capítulo com foto, cargo e contato.
-      </p>
 
-      {loading ? (
-        <p className="text-slate-500">Carregando...</p>
-      ) : (
-        <div className="overflow-x-auto bg-white rounded-lg border border-slate-200 shadow-sm">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50">
-                <th className="py-3 px-4 text-slate-600 font-medium w-12">Foto</th>
-                <th className="py-3 px-4 text-slate-600 font-medium w-16">ID</th>
-                <th className="py-3 px-4 text-slate-600 font-medium">Nome</th>
-                <th className="py-3 px-4 text-slate-600 font-medium">Cargo</th>
-                <th className="py-3 px-4 text-slate-600 font-medium">Categoria</th>
-                <th className="py-3 px-4 text-slate-600 font-medium">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.map((m) => (
-                <tr key={m.id} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="py-3 px-4">
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 shrink-0 relative">
-                      {m.photo ? (
-                        <Image src={m.photo} alt="" fill className="object-cover" unoptimized={m.photo?.includes('supabase')} />
-                      ) : (
-                        <span className="w-full h-full flex items-center justify-center text-slate-400 text-sm font-medium">
-                          {m.name?.charAt(0)?.toUpperCase() || '?'}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-slate-600 tabular-nums">{m.identifier ?? 0}</td>
-                  <td className="py-3 px-4 text-slate-700">{m.name}</td>
-                  <td className="py-3 px-4 text-blue-800 font-medium">{memberRolesDisplay(m)}</td>
-                  <td className="py-3 px-4 text-slate-600">{memberCategoriesDisplay(m)}</td>
-                  <td className="py-3 px-4">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => openProfile(m)}
-                        className="text-blue-600 hover:underline text-sm"
-                      >
-                        Ver perfil
-                      </button>
-                      {canManage && (
-                        <>
+      {canManageBadges && (
+        <div className="flex gap-2 mb-6 border-b border-slate-200">
+          <button
+            type="button"
+            onClick={() => setActiveTab('lista')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeTab === 'lista'
+                ? 'border-blue-600 text-blue-700'
+                : 'border-transparent text-slate-600 hover:text-blue-600'
+            }`}
+          >
+            Lista de Membros
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('emblemas')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeTab === 'emblemas'
+                ? 'border-blue-600 text-blue-700'
+                : 'border-transparent text-slate-600 hover:text-blue-600'
+            }`}
+          >
+            Dar Emblema
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'lista' && (
+        <>
+          <p className="text-slate-600 mb-6">
+            Lista de membros do capítulo com foto, cargo e contato.
+          </p>
+
+          {loading ? (
+            <p className="text-slate-500">Carregando...</p>
+          ) : (
+            <div className="overflow-x-auto bg-white rounded-lg border border-slate-200 shadow-sm">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50">
+                    <th className="py-3 px-4 text-slate-600 font-medium w-12">Foto</th>
+                    <th className="py-3 px-4 text-slate-600 font-medium w-16">ID</th>
+                    <th className="py-3 px-4 text-slate-600 font-medium">Nome</th>
+                    <th className="py-3 px-4 text-slate-600 font-medium">Cargo</th>
+                    <th className="py-3 px-4 text-slate-600 font-medium">Categoria</th>
+                    <th className="py-3 px-4 text-slate-600 font-medium">Emblemas</th>
+                    <th className="py-3 px-4 text-slate-600 font-medium">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {members.map((m) => (
+                    <tr key={m.id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="py-3 px-4">
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 shrink-0 relative">
+                          {m.photo ? (
+                            <Image src={m.photo} alt="" fill className="object-cover" unoptimized={m.photo?.includes('supabase')} />
+                          ) : (
+                            <span className="w-full h-full flex items-center justify-center text-slate-400 text-sm font-medium">
+                              {m.name?.charAt(0)?.toUpperCase() || '?'}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 tabular-nums">{m.identifier ?? 0}</td>
+                      <td className="py-3 px-4 text-slate-700">{m.name}</td>
+                      <td className="py-3 px-4 text-blue-800 font-medium">{memberRolesDisplay(m)}</td>
+                      <td className="py-3 px-4 text-slate-600">{memberCategoriesDisplay(m)}</td>
+                      <td className="py-3 px-4">
+                        <MemberBadges badges={m.badges} size="sm" className="justify-start" />
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex gap-2">
                           <button
-                            onClick={() => openEdit(m)}
+                            onClick={() => openProfile(m)}
                             className="text-blue-600 hover:underline text-sm"
                           >
-                            Editar
+                            Ver perfil
                           </button>
-                          <button
-                            onClick={() => handleDelete(m.id)}
-                            className="text-red-600 hover:underline text-sm"
-                          >
-                            Excluir
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {members.length === 0 && (
-            <p className="py-8 text-center text-slate-500">Nenhum membro cadastrado.</p>
+                          {canManage && (
+                            <>
+                              <button
+                                onClick={() => openEdit(m)}
+                                className="text-blue-600 hover:underline text-sm"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => handleDelete(m.id)}
+                                className="text-red-600 hover:underline text-sm"
+                              >
+                                Excluir
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {members.length === 0 && (
+                <p className="py-8 text-center text-slate-500">Nenhum membro cadastrado.</p>
+              )}
+            </div>
           )}
+        </>
+      )}
+
+      {activeTab === 'emblemas' && canManageBadges && (
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm max-w-2xl">
+          <h2 className="text-lg font-semibold text-blue-800 mb-2">Conceder emblemas</h2>
+          <p className="text-slate-600 text-sm mb-6">
+            Selecione o membro e marque os emblemas que ele possui. Disponível para admin e membros do Conselho Consultivo.
+          </p>
+          <form onSubmit={handleSaveBadges} className="space-y-6">
+            <div>
+              <label className="block text-slate-700 text-sm mb-1">Membro</label>
+              <select
+                value={badgeMemberId}
+                onChange={(e) => setBadgeMemberId(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+              >
+                <option value="">Selecione um membro...</option>
+                {sortedMembers.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {badgeMemberId && (
+              <div>
+                <p className="text-slate-700 text-sm mb-3">Emblemas</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {badgeCatalog.map((badge) => {
+                    const checked = selectedBadges.includes(badge.id);
+                    return (
+                      <label
+                        key={badge.id}
+                        className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          checked ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleBadgeSelection(badge.id)}
+                          className="mt-1"
+                        />
+                        <span className="relative w-10 h-10 shrink-0 rounded-md overflow-hidden ring-1 ring-slate-200 bg-white">
+                          <Image src={badge.image} alt="" fill className="object-contain p-0.5" sizes="40px" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block font-medium text-slate-800 text-sm">{badge.label}</span>
+                          <span className="block text-slate-500 text-xs">{badge.description}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {selectedBadges.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-slate-600 text-sm mb-2">Pré-visualização</p>
+                    <MemberBadges badges={selectedBadges} size="md" className="justify-start" />
+                  </div>
+                )}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={badgeSaving || !badgeMemberId}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+            >
+              {badgeSaving ? 'Salvando...' : 'Salvar emblemas'}
+            </button>
+          </form>
         </div>
       )}
 
@@ -323,6 +504,12 @@ export default function PainelMembrosPage() {
                 <p className="font-semibold text-slate-800 text-lg">{viewing.name}</p>
                 <p className="text-blue-800 font-medium">{memberRolesDisplay(viewing)}</p>
                 <p className="text-slate-600 text-sm">{memberCategoriesDisplay(viewing)}</p>
+                {viewing.badges && viewing.badges.length > 0 && (
+                  <div className="pt-1">
+                    <p className="text-slate-500 text-xs mb-2">Emblemas</p>
+                    <MemberBadges badges={viewing.badges} size="md" />
+                  </div>
+                )}
                 {(viewing.identifier ?? 0) !== 0 && (
                   <p className="text-slate-600 text-sm">
                     <span className="text-slate-500">ID:</span> {viewing.identifier}

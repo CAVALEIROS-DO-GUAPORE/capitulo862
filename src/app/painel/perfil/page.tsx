@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import MemberBadges from '@/components/MemberBadges';
+import type { MemberBadgeId } from '@/types';
 
 interface Profile {
   id: string;
@@ -14,6 +16,7 @@ interface Profile {
   avatarUrl: string | null;
   signatureUrl: string | null;
   role: string;
+  badges?: MemberBadgeId[];
 }
 
 export default function PerfilPage() {
@@ -287,7 +290,13 @@ export default function PerfilPage() {
               </div>
             )}
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
+            {profile.badges && profile.badges.length > 0 && (
+              <div className="mb-3">
+                <p className="text-slate-600 text-sm mb-2">Emblemas</p>
+                <MemberBadges badges={profile.badges} size="md" className="justify-start" />
+              </div>
+            )}
             <label className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium cursor-pointer disabled:opacity-50">
               {avatarUploading ? 'Enviando...' : 'Alterar foto'}
               <input

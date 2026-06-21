@@ -20,6 +20,18 @@ export type UserRole =
 
 export type MemberCategory = 'demolays' | 'seniores' | 'consultores' | 'escudeiros';
 
+export type MemberBadgeId =
+  | 'tag_cavaleiro'
+  | 'tag_chevalier'
+  | 'tag_conselho'
+  | 'tag_demolay'
+  | 'tag_dm_macom'
+  | 'tag_macom'
+  | 'tag_past_mc'
+  | 'tag_senior'
+  | 'tag_servico_meritorio'
+  | 'tag_iniciatico';
+
 /** Outra categoria/cargo do mesmo membro (ex.: Sênior que também é Consultor) */
 export interface MemberAdditionalRole {
   category: MemberCategory;
@@ -39,6 +51,8 @@ export interface Member {
   identifier?: number;
   /** Outras categorias/cargos (ex.: Presidente dos Sêniores + Consultor) — não duplica a pessoa */
   additionalRoles?: MemberAdditionalRole[];
+  /** Emblemas concedidos pelo Conselho Consultivo ou admin */
+  badges?: MemberBadgeId[];
 }
 
 export interface News {

@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createAuthenticatedClient } from '@/lib/supabase/api-auth';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { parseMemberBadges } from '@/lib/member-badges';
 
 export async function GET(request: NextRequest) {
   const supabase = createAuthenticatedClient(request);
@@ -22,11 +24,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Perfil não encontrado' }, { status: 404 });
   }
 
+  const admin = createAdminClient();
+  const { data: memberRows } = await admin
+    .from('members')
+    .select('badges')
+    .eq('user_id', user.id)
+    .limit(1);
+
+  const badges = parseMemberBadges(memberRows?.[0]?.badges);
+
   return NextResponse.json({
     ...profile,
     birthDate: profile.birth_date,
     avatarUrl: profile.avatar_url,
     signatureUrl: profile.signature_url,
+    badges,
   });
 }
 

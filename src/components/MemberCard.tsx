@@ -1,12 +1,15 @@
 import Image from 'next/image';
+import MemberBadges from './MemberBadges';
+import type { MemberBadgeId } from '@/types';
 
 interface MemberCardProps {
   name: string;
   role: string;
   photo?: string;
+  badges?: MemberBadgeId[];
 }
 
-export default function MemberCard({ name, role, photo }: MemberCardProps) {
+export default function MemberCard({ name, role, photo, badges }: MemberCardProps) {
   return (
     <div className="bg-white rounded-xl p-4 border border-slate-200 hover:border-blue-400 shadow-sm transition-colors">
       <div className="w-24 h-24 mx-auto mb-3 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
@@ -18,6 +21,7 @@ export default function MemberCard({ name, role, photo }: MemberCardProps) {
           </span>
         )}
       </div>
+      <MemberBadges badges={badges} size="md" className="mb-2" />
       <p className="font-bold text-blue-800 text-center">{role}</p>
       <p className="text-slate-600 text-center text-sm">{name}</p>
     </div>
