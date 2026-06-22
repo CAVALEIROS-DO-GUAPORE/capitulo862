@@ -30,7 +30,10 @@ export type MemberBadgeId =
   | 'tag_past_mc'
   | 'tag_senior'
   | 'tag_servico_meritorio'
-  | 'tag_iniciatico';
+  | 'tag_iniciatico'
+  | 'tag_escrivao'
+  | 'tag_hospitaleiro'
+  | 'tag_tesoureiro';
 
 /** Outra categoria/cargo do mesmo membro (ex.: Sênior que também é Consultor) */
 export interface MemberAdditionalRole {

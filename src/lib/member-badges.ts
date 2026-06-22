@@ -9,6 +9,9 @@ export const MEMBER_BADGE_IDS = [
   'tag_senior',
   'tag_servico_meritorio',
   'tag_iniciatico',
+  'tag_escrivao',
+  'tag_hospitaleiro',
+  'tag_tesoureiro',
 ] as const;
 
 export type MemberBadgeId = (typeof MEMBER_BADGE_IDS)[number];
@@ -80,6 +83,24 @@ export const MEMBER_BADGES: MemberBadgeDefinition[] = [
     label: 'Iniciático',
     description: 'DeMolay iniciático',
     image: '/tags/tag_iniciatico.png',
+  },
+  {
+    id: 'tag_escrivao',
+    label: 'Escrivão',
+    description: 'Reconhecido por concluir a campanha Caneta de Ouro',
+    image: '/tags/tag_escrivao.png',
+  },
+  {
+    id: 'tag_hospitaleiro',
+    label: 'Hospitaleiro',
+    description: 'Reconhecido por concluir a campanha de Hospitalaria',
+    image: '/tags/tag_hospitaleiro.png',
+  },
+  {
+    id: 'tag_tesoureiro',
+    label: 'Tesoureiro',
+    description: 'Reconhecido por concluir a campanha Chave de Ouro',
+    image: '/tags/tag_tesoureiro.png',
   },
 ];
 
