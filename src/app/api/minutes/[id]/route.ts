@@ -1,13 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getMinutes, updateMinute, deleteMinute, getNextAtaNumber } from '@/lib/data';
-import { requirePanelUser, requireRoles, MINUTES_EDITOR_ROLES } from '@/lib/panel-auth';
+import { requireRoles, MINUTES_EDITOR_ROLES } from '@/lib/panel-auth';
 import type { InternalMinutes, AtaType } from '@/types';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requirePanelUser(request);
+  const auth = await requireRoles(request, MINUTES_EDITOR_ROLES);
   if (!auth.ok) return auth.response;
 
   try {

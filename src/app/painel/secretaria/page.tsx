@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-
-/** Quem pode acessar Convites e Downloads (sem cadeado). Tesoureiro incluído. */
-const ROLES_SECRETARIA_DOWNLOADS_CONVITES = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'escrivao', 'tesoureiro'];
+import {
+  canViewMinutes,
+  canViewRollCalls,
+  canAccessSecretariaDownloads,
+  canAccessSecretaria,
+} from '@/lib/panel-permissions';
+import { PanelAccessGate } from '@/components/PanelAccessGate';
 
 export default function SecretariaPage() {
   const [user, setUser] = useState<{ role: string } | null>(null);
@@ -18,74 +22,87 @@ export default function SecretariaPage() {
     }
   }, []);
 
-  const canAccessConvites = user?.role && ROLES_SECRETARIA_DOWNLOADS_CONVITES.includes(user.role);
-  const canAccessDownloads = user?.role && ROLES_SECRETARIA_DOWNLOADS_CONVITES.includes(user.role);
+  const role = user?.role;
+  const canAtas = canViewMinutes(role);
+  const canChamada = canViewRollCalls(role);
+  const canConvites = canAccessSecretariaDownloads(role);
+  const canDownloads = canAccessSecretariaDownloads(role);
 
   const cardBase = 'block p-6 rounded-lg border transition-all text-center ';
   const cardEnabled = 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-md ';
   const cardLocked = 'bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed ';
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-blue-800 mb-2">Secretaria</h1>
-      <p className="text-slate-600 mb-8">
-        Escolha uma das opções abaixo. Itens com cadeado exigem permissão.
-      </p>
+    <PanelAccessGate role={role} check={canAccessSecretaria} loading={!user}>
+      <div>
+        <h1 className="text-2xl font-bold text-blue-800 mb-2">Secretaria</h1>
+        <p className="text-slate-600 mb-8">
+          Escolha uma das opções abaixo. Itens com cadeado exigem permissão.
+        </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Link
-          href="/painel/atas"
-          className={cardBase + cardEnabled}
-        >
-          <span className="text-lg font-semibold text-blue-800">Atas</span>
-          <p className="text-slate-500 text-sm mt-1">Atas das reuniões</p>
-        </Link>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {canAtas ? (
+            <Link href="/painel/atas" className={cardBase + cardEnabled}>
+              <span className="text-lg font-semibold text-blue-800">Atas</span>
+              <p className="text-slate-500 text-sm mt-1">Atas das reuniões</p>
+            </Link>
+          ) : (
+            <div className={cardBase + cardLocked} title="Sem permissão para acessar Atas">
+              <span className="text-lg font-semibold text-slate-600">Atas</span>
+              <p className="text-slate-500 text-sm mt-1">Atas das reuniões</p>
+              <p className="text-slate-400 text-xs mt-2 flex items-center justify-center gap-1">
+                <LockIcon /> Acesso restrito
+              </p>
+            </div>
+          )}
 
-        <Link
-          href="/painel/chamada"
-          className={cardBase + cardEnabled}
-        >
-          <span className="text-lg font-semibold text-blue-800">Frequência</span>
-          <p className="text-slate-500 text-sm mt-1">Chamada e presenças</p>
-        </Link>
+          {canChamada ? (
+            <Link href="/painel/chamada" className={cardBase + cardEnabled}>
+              <span className="text-lg font-semibold text-blue-800">Frequência</span>
+              <p className="text-slate-500 text-sm mt-1">Chamada e presenças</p>
+            </Link>
+          ) : (
+            <div className={cardBase + cardLocked} title="Sem permissão para acessar Frequência">
+              <span className="text-lg font-semibold text-slate-600">Frequência</span>
+              <p className="text-slate-500 text-sm mt-1">Chamada e presenças</p>
+              <p className="text-slate-400 text-xs mt-2 flex items-center justify-center gap-1">
+                <LockIcon /> Acesso restrito
+              </p>
+            </div>
+          )}
 
-        {canAccessConvites ? (
-          <Link
-            href="/painel/convites"
-            className={cardBase + cardEnabled}
-          >
-            <span className="text-lg font-semibold text-blue-800">Convites</span>
-            <p className="text-slate-500 text-sm mt-1">Gerenciar convites</p>
-          </Link>
-        ) : (
-          <div className={cardBase + cardLocked} title="Sem permissão para acessar Convites">
-            <span className="text-lg font-semibold text-slate-600">Convites</span>
-            <p className="text-slate-500 text-sm mt-1">Gerenciar convites</p>
-            <p className="text-slate-400 text-xs mt-2 flex items-center justify-center gap-1">
-              <LockIcon /> Acesso restrito
-            </p>
-          </div>
-        )}
+          {canConvites ? (
+            <Link href="/painel/convites" className={cardBase + cardEnabled}>
+              <span className="text-lg font-semibold text-blue-800">Convites</span>
+              <p className="text-slate-500 text-sm mt-1">Gerenciar convites</p>
+            </Link>
+          ) : (
+            <div className={cardBase + cardLocked} title="Sem permissão para acessar Convites">
+              <span className="text-lg font-semibold text-slate-600">Convites</span>
+              <p className="text-slate-500 text-sm mt-1">Gerenciar convites</p>
+              <p className="text-slate-400 text-xs mt-2 flex items-center justify-center gap-1">
+                <LockIcon /> Acesso restrito
+              </p>
+            </div>
+          )}
 
-        {canAccessDownloads ? (
-          <Link
-            href="/painel/downloads"
-            className={cardBase + cardEnabled}
-          >
-            <span className="text-lg font-semibold text-blue-800">Downloads</span>
-            <p className="text-slate-500 text-sm mt-1">Modelos e relatórios para download</p>
-          </Link>
-        ) : (
-          <div className={cardBase + cardLocked} title="Sem permissão para acessar Downloads">
-            <span className="text-lg font-semibold text-slate-600">Downloads</span>
-            <p className="text-slate-500 text-sm mt-1">Modelos e relatórios para download</p>
-            <p className="text-slate-400 text-xs mt-2 flex items-center justify-center gap-1">
-              <LockIcon /> Acesso restrito
-            </p>
-          </div>
-        )}
+          {canDownloads ? (
+            <Link href="/painel/downloads" className={cardBase + cardEnabled}>
+              <span className="text-lg font-semibold text-blue-800">Downloads</span>
+              <p className="text-slate-500 text-sm mt-1">Modelos e relatórios para download</p>
+            </Link>
+          ) : (
+            <div className={cardBase + cardLocked} title="Sem permissão para acessar Downloads">
+              <span className="text-lg font-semibold text-slate-600">Downloads</span>
+              <p className="text-slate-500 text-sm mt-1">Modelos e relatórios para download</p>
+              <p className="text-slate-400 text-xs mt-2 flex items-center justify-center gap-1">
+                <LockIcon /> Acesso restrito
+              </p>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </PanelAccessGate>
   );
 }
 

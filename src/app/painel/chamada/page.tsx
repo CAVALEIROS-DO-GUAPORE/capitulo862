@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Member, RollCall } from '@/types';
+import { PanelAccessGate } from '@/components/PanelAccessGate';
+import { ROLL_CALL_VIEWER_ROLES } from '@/lib/panel-permissions';
 
 const CATEGORY_ORDER = ['demolays', 'seniores', 'consultores', 'escudeiros'] as const;
 type ChamadaCategory = (typeof CATEGORY_ORDER)[number];
@@ -326,6 +328,7 @@ export default function PainelFrequenciaPage() {
   const totalMarked = members.length;
 
   return (
+    <PanelAccessGate role={user?.role} allowed={ROLL_CALL_VIEWER_ROLES} loading={!user}>
     <div className="max-w-4xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-blue-800">Frequência</h1>
@@ -593,5 +596,6 @@ export default function PainelFrequenciaPage() {
         </div>
       )}
     </div>
+    </PanelAccessGate>
   );
 }

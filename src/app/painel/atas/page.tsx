@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useDialogs } from '@/components/DialogsProvider';
+import { PanelAccessGate } from '@/components/PanelAccessGate';
+import { MINUTES_VIEWER_ROLES } from '@/lib/panel-permissions';
 import type { InternalMinutes, AtaType } from '@/types';
 import type { Member } from '@/types';
 
@@ -329,6 +331,7 @@ export default function PainelAtasPage() {
   };
 
   return (
+    <PanelAccessGate role={user?.role} allowed={MINUTES_VIEWER_ROLES} loading={!user}>
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold text-blue-800">Atas</h1>
@@ -727,5 +730,6 @@ export default function PainelAtasPage() {
         </div>
       )}
     </div>
+    </PanelAccessGate>
   );
 }

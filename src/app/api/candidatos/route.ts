@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { canViewCandidates } from '@/lib/candidatos-auth';
 import { getCandidates, insertCandidate } from '@/lib/data';
+import { canViewCandidates } from '@/lib/candidatos-auth';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 export async function GET(request: NextRequest) {
   if (!(await canViewCandidates(request))) {
@@ -16,8 +17,22 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: Request) {
+  const ip = getClientIp(request);
+  const limited = checkRateLimit(`candidatos:${ip}`, 5, 15 * 60 * 1000);
+  if (!limited.ok) {
+    return NextResponse.json(
+      { error: 'Muitas tentativas. Tente novamente mais tarde.' },
+      { status: 429, headers: { 'Retry-After': String(limited.retryAfterSec) } }
+    );
+  }
+
   try {
     const body = await request.json();
+
+    if (body._website) {
+      return NextResponse.json({ success: true, id: 'ok' });
+    }
+
     const {
       fullName,
       motherName,

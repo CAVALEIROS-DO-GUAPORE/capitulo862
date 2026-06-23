@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import PizZip from 'pizzip';
-import { isAuthenticatedPanelUser } from '@/lib/finance-auth';
+import { canManageFinance } from '@/lib/finance-auth';
 import {
   getFinanceEntries,
   getFinanceReceipts,
@@ -20,8 +20,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await isAuthenticatedPanelUser(request))) {
-    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+  if (!(await canManageFinance(request))) {
+    return NextResponse.json({ error: 'Sem permissão' }, { status: 403 });
   }
 
   const { id } = await params;

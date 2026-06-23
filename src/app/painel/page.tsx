@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { getPanelHomeCards } from '@/lib/panel-permissions';
 
 export default function PainelPage() {
   const [user, setUser] = useState<{ role?: string } | null>(null);
+  const [canViewCandidatos, setCanViewCandidatos] = useState(false);
 
   useEffect(() => {
     const stored = sessionStorage.getItem('dm_user');
@@ -15,17 +17,15 @@ export default function PainelPage() {
     }
   }, []);
 
-  const cards = [
-    ...(user?.role === 'admin'
-      ? [{ href: '/painel/manutencao', label: 'Manutenção', desc: 'Ativar ou desativar modo manutenção' }]
-      : []),
-    { href: '/painel/membros', label: 'Membros', desc: 'Ver membros' },
-    { href: '/painel/noticias', label: 'Notícias', desc: 'Ver notícias' },
-    { href: '/painel/calendario', label: 'Calendário', desc: 'Eventos e ritualísticas' },
-    { href: '/painel/atas', label: 'Atas', desc: 'Atas internas' },
-    { href: '/painel/financas', label: 'Finanças', desc: 'Caixa e prestação de contas' },
-    ...(user ? [{ href: '/painel/secretaria', label: 'Secretaria', desc: 'Chamadas, downloads e relatórios' }] : []),
-  ];
+  useEffect(() => {
+    if (!user?.role) return;
+    fetch('/api/candidatos/access', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { canView: false }))
+      .then((data) => setCanViewCandidatos(data.canView === true))
+      .catch(() => setCanViewCandidatos(false));
+  }, [user?.role]);
+
+  const cards = user?.role ? getPanelHomeCards(user.role, { canViewCandidatos }) : [];
 
   return (
     <div>

@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useDialogs } from '@/components/DialogsProvider';
+import { PanelAccessGate } from '@/components/PanelAccessGate';
+import { FINANCE_VIEWER_ROLES, canViewFinance } from '@/lib/panel-permissions';
 import type { FinanceEntry, FinanceReceipt } from '@/types';
 
 type PublicReceipt = Omit<FinanceReceipt, 'storagePath'>;
@@ -54,7 +56,7 @@ export default function PainelFinancasPage() {
   const [filtroMes, setFiltroMes] = useState<string>('');
   const [filtroData, setFiltroData] = useState<string>('');
 
-  const canManage = user?.role && ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'tesoureiro'].includes(user.role);
+  const canManage = canViewFinance(user?.role);
 
   useEffect(() => {
     const stored = sessionStorage.getItem('dm_user');
@@ -365,6 +367,7 @@ export default function PainelFinancasPage() {
   })();
 
   return (
+    <PanelAccessGate role={user?.role} allowed={FINANCE_VIEWER_ROLES} loading={!user}>
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold text-blue-800">Finanças</h1>
@@ -643,5 +646,6 @@ export default function PainelFinancasPage() {
         </div>
       )}
     </div>
+    </PanelAccessGate>
   );
 }

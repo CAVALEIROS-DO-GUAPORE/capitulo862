@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       email: email.trim(),
       password: SENHA_PADRAO,
       email_confirm: true,
-      user_metadata: { name: name || '', role },
+      user_metadata: { name: name || '' },
     });
 
     if (error) {

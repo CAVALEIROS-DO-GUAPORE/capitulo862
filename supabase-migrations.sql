@@ -84,11 +84,7 @@ CREATE INDEX IF NOT EXISTS finance_receipts_entry_id_idx ON finance_receipts(fin
 
 ALTER TABLE finance_receipts ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Authenticated can read finance receipts" ON finance_receipts;
-CREATE POLICY "Authenticated can read finance receipts"
-  ON finance_receipts FOR SELECT
-  TO authenticated
-  USING (true);
+-- Acesso a comprovantes apenas via API (service role). Sem política SELECT para authenticated.
 
 -- Criar bucket finance-receipts: Supabase Dashboard > Storage > New bucket
 -- Nome: finance-receipts | Public: NÃO (privado — download via API autenticada)
@@ -113,11 +109,7 @@ CREATE INDEX IF NOT EXISTS candidate_documents_candidate_id_idx ON candidate_doc
 
 ALTER TABLE candidate_documents ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Authenticated can read candidate documents" ON candidate_documents;
-CREATE POLICY "Authenticated can read candidate documents"
-  ON candidate_documents FOR SELECT
-  TO authenticated
-  USING (true);
+-- Acesso a documentos de candidatos apenas via API (service role). Sem política SELECT para authenticated.
 
 -- Criar bucket candidate-documents: Supabase Dashboard > Storage > New bucket
 -- Nome: candidate-documents | Public: NÃO

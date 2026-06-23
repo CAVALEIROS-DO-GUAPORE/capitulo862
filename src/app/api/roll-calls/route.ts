@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getRollCalls, getRollCallByDate, upsertRollCall } from '@/lib/data';
-import { requirePanelUser, requireRoles, ROLL_CALL_EDITOR_ROLES } from '@/lib/panel-auth';
+import { requireRoles, ROLL_CALL_EDITOR_ROLES } from '@/lib/panel-auth';
 
 export async function GET(request: NextRequest) {
-  const auth = await requirePanelUser(request);
+  const auth = await requireRoles(request, ROLL_CALL_EDITOR_ROLES);
   if (!auth.ok) return auth.response;
 
   try {

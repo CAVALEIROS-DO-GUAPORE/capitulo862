@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { AlertsBanner } from '@/components/AlertsBanner';
+import { getPanelNavLinks } from '@/lib/panel-permissions';
 
 interface SessionUser {
   id?: string;
@@ -21,6 +22,7 @@ export default function PainelLayout({
   children: React.ReactNode;
 }) {
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [canViewCandidatos, setCanViewCandidatos] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
@@ -147,6 +149,14 @@ export default function PainelLayout({
     };
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!user) return;
+    fetch('/api/candidatos/access', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { canView: false }))
+      .then((data) => setCanViewCandidatos(data.canView === true))
+      .catch(() => setCanViewCandidatos(false));
+  }, [user]);
+
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -155,20 +165,7 @@ export default function PainelLayout({
     router.refresh();
   }
 
-  const canViewCandidatos = (role: string) =>
-    ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'escrivao', 'tesoureiro', 'membro'].includes(role);
-
-  const links = [
-    { href: '/painel', label: 'Início' },
-    ...(user?.role === 'admin' ? [{ href: '/painel/manutencao', label: 'Manutenção' }] : []),
-    ...(user ? (canViewCandidatos(user.role) ? [{ href: '/painel/candidatos', label: 'Candidaturas' }] : []) : []),
-    ...(user ? (canViewCandidatos(user.role) ? [{ href: '/painel/usuarios', label: 'Usuários' }] : []) : []),
-    { href: '/painel/membros', label: 'Membros' },
-    { href: '/painel/noticias', label: 'Notícias' },
-    { href: '/painel/calendario', label: 'Calendário' },
-    { href: '/painel/financas', label: 'Finanças' },
-    ...(user ? [{ href: '/painel/secretaria', label: 'Secretaria' }] : []),
-  ];
+  const links = user ? getPanelNavLinks(user.role, { canViewCandidatos }) : [];
 
   if (loading || !user) {
     return (

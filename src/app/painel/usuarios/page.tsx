@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useDialogs } from '@/components/DialogsProvider';
+import { PanelAccessGate } from '@/components/PanelAccessGate';
+import { MANAGER_ROLES, canManageUsers } from '@/lib/panel-permissions';
 
 // Cargos do painel (rank interno): só estes ao criar/editar usuário. Cargos do capítulo (ex.: Sênior, Consultor) ficam no cadastro de Membros.
 const PANEL_ROLES = [
@@ -53,9 +55,9 @@ export default function PainelUsuariosPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [tab, setTab] = useState<UsuariosTab>('lista');
 
-  const canCreateUser = user?.role && ['admin', 'mestre_conselheiro', 'primeiro_conselheiro'].includes(user.role);
+  const canCreateUser = canManageUsers(user?.role);
   const canResetPassword = canCreateUser;
-  const canManageUsers = canCreateUser;
+  const canManageUsersList = canCreateUser;
 
   useEffect(() => {
     const stored = sessionStorage.getItem('dm_user');
@@ -67,7 +69,7 @@ export default function PainelUsuariosPage() {
   }, []);
 
   async function loadUsers() {
-    if (!canManageUsers) return;
+    if (!canManageUsersList) return;
     setUsersLoading(true);
     try {
       const headers = await getAuthHeaders();
@@ -84,18 +86,18 @@ export default function PainelUsuariosPage() {
   }
 
   useEffect(() => {
-    if (canManageUsers) loadUsers();
-  }, [canManageUsers]);
+    if (canManageUsersList) loadUsers();
+  }, [canManageUsersList]);
 
   useEffect(() => {
-    if (!canManageUsers) return;
+    if (!canManageUsersList) return;
     const supabase = createClient();
     const channel = supabase
       .channel('profiles-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => loadUsers())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [canManageUsers]);
+  }, [canManageUsersList]);
 
   async function handleRoleChange(u: UserItem, newRole: string) {
     if (newRole === u.role) return;
@@ -243,11 +245,11 @@ export default function PainelUsuariosPage() {
     setTab('senha');
   }
 
-  if (!user || !canCreateUser) {
+  if (!user || !canManageUsersList) {
     return (
-      <div>
-        <p className="text-slate-600">Você não tem permissão para cadastrar usuários.</p>
-      </div>
+      <PanelAccessGate role={user?.role} allowed={MANAGER_ROLES} loading={!user}>
+        <div />
+      </PanelAccessGate>
     );
   }
 
