@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { parseMemberBadges } from '@/lib/member-badges';
-import type { Member, News, InternalMinutes, FinanceEntry, FinanceReceipt, CalendarEvent, RollCall, MembershipCandidate, MemberAdditionalRole, CandidateDocument } from '@/types';
+import type { Member, News, InternalMinutes, FinanceEntry, FinanceReceipt, CalendarEvent, RollCall, MembershipCandidate, MemberAdditionalRole, CandidateDocument, MeetingType } from '@/types';
 
 export const FINANCE_RECEIPTS_BUCKET = 'finance-receipts';
 export const CANDIDATE_DOCUMENTS_BUCKET = 'candidate-documents';
@@ -118,6 +118,7 @@ function toFinanceReceipt(row: Record<string, unknown>): FinanceReceipt {
 }
 
 function toRollCall(row: Record<string, unknown>): RollCall {
+  const meetingType = row.meeting_type ? String(row.meeting_type) as RollCall['meetingType'] : 'ritualistica';
   return {
     id: String(row.id),
     date: String(row.date).slice(0, 10),
@@ -127,6 +128,11 @@ function toRollCall(row: Record<string, unknown>): RollCall {
     gestao: row.gestao != null ? String(row.gestao) : undefined,
     tipoReuniao: row.tipo_reuniao != null ? String(row.tipo_reuniao) : undefined,
     breveDescricao: row.breve_descricao != null ? String(row.breve_descricao) : undefined,
+    meetingType,
+    title: row.title ? String(row.title) : undefined,
+    description: row.description ? String(row.description) : (row.breve_descricao ? String(row.breve_descricao) : undefined),
+    startTime: row.start_time ? String(row.start_time) : undefined,
+    endTime: row.end_time ? String(row.end_time) : undefined,
   };
 }
 
@@ -592,26 +598,69 @@ export async function downloadFinanceReceiptFile(storagePath: string): Promise<{
 }
 
 // ---------- Roll calls ----------
-export async function getRollCalls(): Promise<RollCall[]> {
+export async function getRollCalls(meetingType?: MeetingType): Promise<RollCall[]> {
   const supabase = createAdminClient();
-  const { data, error } = await supabase.from('roll_calls').select('*').order('date', { ascending: false });
+  let query = supabase.from('roll_calls').select('*').order('date', { ascending: false });
+  if (meetingType === 'ritualistica') {
+    query = query.or('meeting_type.eq.ritualistica,meeting_type.is.null');
+  } else if (meetingType) {
+    query = query.eq('meeting_type', meetingType);
+  }
+  const { data, error } = await query;
   if (error) throw error;
   return (data || []).map(toRollCall);
 }
 
-export async function getRollCallByDate(date: string): Promise<RollCall | null> {
+export async function getRollCallById(id: string): Promise<RollCall | null> {
   const supabase = createAdminClient();
-  const { data, error } = await supabase.from('roll_calls').select('*').eq('date', date).maybeSingle();
+  const { data, error } = await supabase.from('roll_calls').select('*').eq('id', id).maybeSingle();
   if (error) throw error;
   return data ? toRollCall(data) : null;
 }
 
+export async function getRollCallByDate(date: string): Promise<RollCall | null> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('roll_calls')
+    .select('*')
+    .eq('date', date)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  const rows = data || [];
+  const ritualistica = rows.find((row) => !row.meeting_type || row.meeting_type === 'ritualistica');
+  if (ritualistica) return toRollCall(ritualistica);
+  return rows[0] ? toRollCall(rows[0]) : null;
+}
+
 export interface UpsertRollCallOptions {
+  id?: string;
   date: string;
   attendance: Record<string, boolean>;
   gestao?: string;
   tipoReuniao?: string;
   breveDescricao?: string;
+  meetingType?: MeetingType;
+  title?: string;
+  description?: string;
+  startTime?: string;
+  endTime?: string;
+  authorId?: string;
+}
+
+function buildRollCallRow(opts: UpsertRollCallOptions): Record<string, unknown> {
+  return {
+    date: opts.date,
+    attendance: opts.attendance ?? {},
+    author_id: opts.authorId ?? null,
+    gestao: opts.gestao ?? null,
+    tipo_reuniao: opts.tipoReuniao ?? null,
+    breve_descricao: opts.breveDescricao ?? opts.description ?? null,
+    meeting_type: opts.meetingType ?? 'ritualistica',
+    title: opts.title ?? null,
+    description: opts.description ?? opts.breveDescricao ?? null,
+    start_time: opts.startTime ?? null,
+    end_time: opts.endTime ?? null,
+  };
 }
 
 export async function upsertRollCall(
@@ -619,27 +668,35 @@ export async function upsertRollCall(
   attendance?: Record<string, boolean>
 ): Promise<RollCall> {
   const supabase = createAdminClient();
-  const opts = typeof dateOrOptions === 'string'
-    ? { date: dateOrOptions, attendance: attendance ?? {} }
+  const opts: UpsertRollCallOptions = typeof dateOrOptions === 'string'
+    ? { date: dateOrOptions, attendance: attendance ?? {}, meetingType: 'ritualistica' }
     : dateOrOptions;
-  const { date, attendance: att, gestao, tipoReuniao, breveDescricao } = opts;
-  const existing = await getRollCallByDate(date);
-  const row: Record<string, unknown> = {
-    date,
-    attendance: att ?? {},
-    author_id: null,
-    gestao: gestao ?? null,
-    tipo_reuniao: tipoReuniao ?? null,
-    breve_descricao: breveDescricao ?? null,
-  };
-  if (existing) {
-    const { data, error } = await supabase.from('roll_calls').update(row).eq('id', existing.id).select('*').single();
+  const row = buildRollCallRow(opts);
+
+  if (opts.id) {
+    const { data, error } = await supabase.from('roll_calls').update(row).eq('id', opts.id).select('*').single();
     if (error) throw error;
     return toRollCall(data);
   }
+
+  if ((opts.meetingType || 'ritualistica') === 'ritualistica' && !opts.title) {
+    const existing = await getRollCallByDate(opts.date);
+    if (existing && (existing.meetingType || 'ritualistica') === 'ritualistica' && !existing.title) {
+      const { data, error } = await supabase.from('roll_calls').update(row).eq('id', existing.id).select('*').single();
+      if (error) throw error;
+      return toRollCall(data);
+    }
+  }
+
   const { data, error } = await supabase.from('roll_calls').insert(row).select('*').single();
   if (error) throw error;
   return toRollCall(data);
+}
+
+export async function deleteRollCall(id: string): Promise<void> {
+  const supabase = createAdminClient();
+  const { error } = await supabase.from('roll_calls').delete().eq('id', id);
+  if (error) throw error;
 }
 
 /** Roll calls filtrados por ano e gestão (para relatório único). */

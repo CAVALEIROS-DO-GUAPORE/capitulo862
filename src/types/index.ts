@@ -73,16 +73,32 @@ export interface News {
 
 export type AtaType = 'RITUALISTICA' | 'ADMINISTRATIVA' | 'EVENTO' | 'OUTROS';
 
+export type MeetingType = 'ritualistica' | 'administrativa' | 'controle';
+
 export interface RollCall {
   id: string;
   date: string;
   attendance: Record<string, boolean>;
   createdAt: string;
   authorId: string;
-  /** Gestão (1 ou 2) para filtrar relatório por ano/gestão */
+  /** Gestão no formato ano/período (ex.: 2026/2) ou legado 1/2 */
   gestao?: string;
   tipoReuniao?: string;
   breveDescricao?: string;
+  meetingType?: MeetingType;
+  title?: string;
+  description?: string;
+  startTime?: string;
+  endTime?: string;
+}
+
+export interface AttendanceRankingEntry {
+  memberId: string;
+  name: string;
+  photo?: string;
+  count: number;
+  percentage: number;
+  totalMeetings: number;
 }
 
 export interface InternalMinutes {

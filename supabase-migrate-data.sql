@@ -8,6 +8,15 @@ ALTER TABLE public.members ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE public.members ADD COLUMN IF NOT EXISTS additional_roles JSONB DEFAULT '[]';
 ALTER TABLE public.members ADD COLUMN IF NOT EXISTS badges JSONB DEFAULT '[]';
 
+-- ========== ROLL_CALLS: reuniões por tipo (ritualística, administrativa, controle) ==========
+ALTER TABLE public.roll_calls DROP CONSTRAINT IF EXISTS roll_calls_date_key;
+ALTER TABLE public.roll_calls ADD COLUMN IF NOT EXISTS meeting_type TEXT DEFAULT 'ritualistica';
+ALTER TABLE public.roll_calls ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE public.roll_calls ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.roll_calls ADD COLUMN IF NOT EXISTS start_time TEXT;
+ALTER TABLE public.roll_calls ADD COLUMN IF NOT EXISTS end_time TEXT;
+UPDATE public.roll_calls SET meeting_type = 'ritualistica' WHERE meeting_type IS NULL;
+
 -- ========== MINUTES: colunas da ata estendida ==========
 ALTER TABLE public.minutes ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'rascunho';
 ALTER TABLE public.minutes ADD COLUMN IF NOT EXISTS ata_number INT;
