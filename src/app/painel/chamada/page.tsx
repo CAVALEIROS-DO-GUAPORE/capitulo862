@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Member, RollCall, MeetingType } from '@/types';
 import { PanelAccessGate } from '@/components/PanelAccessGate';
-import { ROLL_CALL_VIEWER_ROLES } from '@/lib/panel-permissions';
+import { canManageRollCalls, canViewRollCalls } from '@/lib/panel-permissions';
 import {
   MEETING_TYPES,
   MEETING_TYPE_LABELS,
@@ -104,7 +104,7 @@ export default function PainelFrequenciaPage() {
   const [selectedCategory, setSelectedCategory] = useState<ChamadaCategory | ''>('');
   const [downloadingModelo, setDownloadingModelo] = useState(false);
 
-  const canEdit = user?.role && ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'escrivao'].includes(user.role);
+  const canEdit = canManageRollCalls(user?.role);
 
   async function getAuthHeaders(): Promise<HeadersInit> {
     const supabase = createClient();
@@ -335,7 +335,7 @@ export default function PainelFrequenciaPage() {
   const totalMarked = poolMembers.length;
 
   return (
-    <PanelAccessGate role={user?.role} allowed={ROLL_CALL_VIEWER_ROLES} loading={!user}>
+    <PanelAccessGate role={user?.role} check={canViewRollCalls} loading={!user}>
       <div className="max-w-5xl">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-blue-800">Frequência</h1>

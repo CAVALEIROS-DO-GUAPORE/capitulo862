@@ -1,10 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import path from 'path';
 import fs from 'fs';
-import { requireRoles } from '@/lib/panel-auth';
+import { requirePanelUser } from '@/lib/panel-auth';
 import { findCandidaturaDownload } from '@/lib/candidaturas-downloads';
-
-const ROLES_CAN_DOWNLOAD = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'escrivao', 'tesoureiro'];
 
 function resolveCandidaturaFile(fileMatch: string): string | null {
   const dir = path.join(process.cwd(), 'public', 'candidaturas');
@@ -20,7 +18,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  const auth = await requireRoles(request, ROLES_CAN_DOWNLOAD);
+  const auth = await requirePanelUser(request);
   if (!auth.ok) return auth.response;
 
   try {

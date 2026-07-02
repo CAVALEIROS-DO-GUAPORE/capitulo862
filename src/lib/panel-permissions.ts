@@ -1,15 +1,24 @@
-import { MANAGER_ROLES } from '@/lib/auth-constants';
+import { MANAGER_ROLES, PANEL_ROLES } from '@/lib/auth-constants';
 
-/** Cargos com acesso de leitura a finanças (alinhado às APIs). */
-export const FINANCE_VIEWER_ROLES = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'tesoureiro'] as const;
+/** Cargos com permissão de lançar/editar/excluir finanças. */
+export const FINANCE_MANAGER_ROLES = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'tesoureiro'] as const;
 
-/** Cargos com acesso a atas internas. */
-export const MINUTES_VIEWER_ROLES = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'escrivao'] as const;
+/** Cargos com permissão de criar/editar/excluir atas. */
+export const MINUTES_MANAGER_ROLES = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'escrivao'] as const;
 
-/** Cargos com acesso à frequência/chamada. */
-export const ROLL_CALL_VIEWER_ROLES = MINUTES_VIEWER_ROLES;
+/** Cargos com permissão de lançar/editar/excluir frequência. */
+export const ROLL_CALL_MANAGER_ROLES = MINUTES_MANAGER_ROLES;
 
-/** Convites, downloads e relatórios da secretaria. */
+/** @deprecated Use FINANCE_MANAGER_ROLES */
+export const FINANCE_VIEWER_ROLES = FINANCE_MANAGER_ROLES;
+
+/** @deprecated Use MINUTES_MANAGER_ROLES */
+export const MINUTES_VIEWER_ROLES = MINUTES_MANAGER_ROLES;
+
+/** @deprecated Use ROLL_CALL_MANAGER_ROLES */
+export const ROLL_CALL_VIEWER_ROLES = ROLL_CALL_MANAGER_ROLES;
+
+/** Convites e gestão da secretaria (oficiais). */
 export const SECRETARIA_OFFICER_ROLES = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'escrivao', 'tesoureiro'] as const;
 
 export { MANAGER_ROLES };
@@ -22,19 +31,31 @@ export function hasPanelRole(
 }
 
 export function canViewFinance(role: string | undefined | null): boolean {
-  return hasPanelRole(role, FINANCE_VIEWER_ROLES);
+  return hasPanelRole(role, PANEL_ROLES);
+}
+
+export function canManageFinance(role: string | undefined | null): boolean {
+  return hasPanelRole(role, FINANCE_MANAGER_ROLES);
 }
 
 export function canViewMinutes(role: string | undefined | null): boolean {
-  return hasPanelRole(role, MINUTES_VIEWER_ROLES);
+  return hasPanelRole(role, PANEL_ROLES);
+}
+
+export function canManageMinutes(role: string | undefined | null): boolean {
+  return hasPanelRole(role, MINUTES_MANAGER_ROLES);
 }
 
 export function canViewRollCalls(role: string | undefined | null): boolean {
-  return hasPanelRole(role, ROLL_CALL_VIEWER_ROLES);
+  return hasPanelRole(role, PANEL_ROLES);
+}
+
+export function canManageRollCalls(role: string | undefined | null): boolean {
+  return hasPanelRole(role, ROLL_CALL_MANAGER_ROLES);
 }
 
 export function canAccessSecretariaDownloads(role: string | undefined | null): boolean {
-  return hasPanelRole(role, SECRETARIA_OFFICER_ROLES);
+  return hasPanelRole(role, PANEL_ROLES);
 }
 
 export function canManageUsers(role: string | undefined | null): boolean {
@@ -85,6 +106,12 @@ export function getPanelNavLinks(
   if (canViewFinance(role)) {
     links.push({ href: '/painel/financas', label: 'Finanças' });
   }
+  if (canViewMinutes(role)) {
+    links.push({ href: '/painel/atas', label: 'Atas' });
+  }
+  if (canViewRollCalls(role)) {
+    links.push({ href: '/painel/chamada', label: 'Frequência' });
+  }
   if (canAccessSecretaria(role)) {
     links.push({ href: '/painel/secretaria', label: 'Secretaria' });
   }
@@ -132,7 +159,10 @@ export function getPanelHomeCards(
     });
   }
   if (canViewMinutes(role)) {
-    cards.push({ href: '/painel/atas', label: 'Atas', desc: 'Atas internas das reuniões' });
+    cards.push({ href: '/painel/atas', label: 'Atas', desc: 'Atas publicadas das reuniões' });
+  }
+  if (canViewRollCalls(role)) {
+    cards.push({ href: '/painel/chamada', label: 'Frequência', desc: 'Presenças das reuniões' });
   }
   if (canViewFinance(role)) {
     cards.push({

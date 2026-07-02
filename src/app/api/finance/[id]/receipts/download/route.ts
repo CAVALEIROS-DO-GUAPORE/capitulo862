@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import PizZip from 'pizzip';
-import { canManageFinance } from '@/lib/finance-auth';
+import { canManageFinance, canViewFinance } from '@/lib/finance-auth';
 import {
   getFinanceEntries,
   getFinanceReceipts,
@@ -20,7 +20,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await canManageFinance(request))) {
+  if (!(await canViewFinance(request))) {
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 });
   }
 

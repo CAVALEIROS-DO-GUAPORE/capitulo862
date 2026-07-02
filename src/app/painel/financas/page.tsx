@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useDialogs } from '@/components/DialogsProvider';
 import { PanelAccessGate } from '@/components/PanelAccessGate';
-import { FINANCE_VIEWER_ROLES, canViewFinance } from '@/lib/panel-permissions';
+import { canManageFinance, canViewFinance } from '@/lib/panel-permissions';
 import type { FinanceEntry, FinanceReceipt } from '@/types';
 
 type PublicReceipt = Omit<FinanceReceipt, 'storagePath'>;
@@ -56,7 +56,7 @@ export default function PainelFinancasPage() {
   const [filtroMes, setFiltroMes] = useState<string>('');
   const [filtroData, setFiltroData] = useState<string>('');
 
-  const canManage = canViewFinance(user?.role);
+  const canManage = canManageFinance(user?.role);
 
   useEffect(() => {
     const stored = sessionStorage.getItem('dm_user');
@@ -367,7 +367,7 @@ export default function PainelFinancasPage() {
   })();
 
   return (
-    <PanelAccessGate role={user?.role} allowed={FINANCE_VIEWER_ROLES} loading={!user}>
+    <PanelAccessGate role={user?.role} check={canViewFinance} loading={!user}>
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold text-blue-800">Finanças</h1>
@@ -417,7 +417,7 @@ export default function PainelFinancasPage() {
         </div>
       </div>
       <p className="text-slate-600 mb-6">
-        Entradas e saídas financeiras do capítulo. Filtre por ano, mês ou data e gere o extrato em PDF.
+        Entradas e saídas financeiras do capítulo. Todos os membros podem consultar; MC, 1ºC, Tesoureiro e Admin podem lançar e editar movimentações.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

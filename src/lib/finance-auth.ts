@@ -26,6 +26,10 @@ export async function canManageFinance(request: NextRequest): Promise<boolean> {
   return role != null && FINANCE_MANAGER_ROLES.includes(role as (typeof FINANCE_MANAGER_ROLES)[number]);
 }
 
+export async function canViewFinance(request: NextRequest): Promise<boolean> {
+  return isAuthenticatedPanelUser(request);
+}
+
 export async function isAuthenticatedPanelUser(request: NextRequest): Promise<boolean> {
   const user = await getAuthenticatedUser(request);
   if (!user) return false;

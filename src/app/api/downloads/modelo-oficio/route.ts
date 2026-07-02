@@ -1,27 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import path from 'path';
 import fs from 'fs';
-import { createAuthenticatedClient } from '@/lib/supabase/api-auth';
-import { createAdminClient } from '@/lib/supabase/admin';
-
-const ROLES_CAN_DOWNLOAD = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'escrivao', 'tesoureiro'];
+import { requirePanelUser } from '@/lib/panel-auth';
 
 /** Download do modelo original de ofício/convite (sem preenchimento automático). */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createAuthenticatedClient(request);
-    if (!supabase) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-
-    const admin = createAdminClient();
-    const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
-    if (!profile || !ROLES_CAN_DOWNLOAD.includes(profile.role)) {
-      return NextResponse.json(
-        { error: 'Apenas cargos com permissão da secretaria podem baixar o modelo.' },
-        { status: 403 }
-      );
-    }
+    const auth = await requirePanelUser(request);
+    if (!auth.ok) return auth.response;
 
     const templatePath = path.join(process.cwd(), 'public', 'modelo_oficio.docx');
     if (!fs.existsSync(templatePath)) {

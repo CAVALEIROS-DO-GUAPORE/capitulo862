@@ -1,13 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getMinutes, updateMinute, deleteMinute, getNextAtaNumber } from '@/lib/data';
-import { requireRoles, MINUTES_EDITOR_ROLES } from '@/lib/panel-auth';
+import { requirePanelUser, requireRoles, MINUTES_EDITOR_ROLES } from '@/lib/panel-auth';
+import { canManageMinutes } from '@/lib/panel-permissions';
 import type { InternalMinutes, AtaType } from '@/types';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireRoles(request, MINUTES_EDITOR_ROLES);
+  const auth = await requirePanelUser(request);
   if (!auth.ok) return auth.response;
 
   try {
@@ -15,6 +16,9 @@ export async function GET(
     const minutes = await getMinutes();
     const one = minutes.find((m) => m.id === id);
     if (!one) return NextResponse.json({ error: 'Ata não encontrada' }, { status: 404 });
+    if (!canManageMinutes(auth.role) && one.status !== 'publicada') {
+      return NextResponse.json({ error: 'Ata não encontrada' }, { status: 404 });
+    }
     return NextResponse.json(one);
   } catch (err) {
     return NextResponse.json({ error: 'Erro ao carregar ata' }, { status: 500 });

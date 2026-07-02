@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { canManageFinance } from '@/lib/finance-auth';
+import { canManageFinance, canViewFinance } from '@/lib/finance-auth';
 import { compressReceiptFile, sanitizeFileName } from '@/lib/compress-receipt';
 import {
   getFinanceEntries,
@@ -13,7 +13,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await canManageFinance(request))) {
+  if (!(await canViewFinance(request))) {
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 });
   }
 

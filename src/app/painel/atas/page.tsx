@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useDialogs } from '@/components/DialogsProvider';
 import { PanelAccessGate } from '@/components/PanelAccessGate';
-import { MINUTES_VIEWER_ROLES } from '@/lib/panel-permissions';
+import { canManageMinutes, canViewMinutes } from '@/lib/panel-permissions';
 import type { InternalMinutes, AtaType } from '@/types';
 import type { Member } from '@/types';
 
@@ -58,7 +58,7 @@ export default function PainelAtasPage() {
   const [pullRollCallDate, setPullRollCallDate] = useState('');
   const [tioManual, setTioManual] = useState('');
 
-  const canPost = user?.role && ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'escrivao'].includes(user.role);
+  const canPost = canManageMinutes(user?.role);
 
   useEffect(() => {
     const stored = sessionStorage.getItem('dm_user');
@@ -319,7 +319,8 @@ export default function PainelAtasPage() {
     });
   }
 
-  const sorted = [...minutes].sort(
+  const visibleMinutes = canPost ? minutes : minutes.filter((m) => m.status === 'publicada');
+  const sorted = [...visibleMinutes].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
@@ -331,7 +332,7 @@ export default function PainelAtasPage() {
   };
 
   return (
-    <PanelAccessGate role={user?.role} allowed={MINUTES_VIEWER_ROLES} loading={!user}>
+    <PanelAccessGate role={user?.role} check={canViewMinutes} loading={!user}>
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold text-blue-800">Atas</h1>
@@ -345,7 +346,7 @@ export default function PainelAtasPage() {
         )}
       </div>
       <p className="text-slate-600 mb-4">
-        Atas das reuniões. Salve como rascunho para editar depois ou publique para que todos vejam. Quem tem carga de Escrivão, MC, 1ºC ou Admin pode editar e excluir.
+        Atas publicadas das reuniões. Membros visualizam apenas atas publicadas; Escrivão, MC, 1ºC e Admin podem criar, editar e excluir.
       </p>
       <div className="flex flex-wrap items-center gap-2 mb-6">
         <a
@@ -390,7 +391,7 @@ export default function PainelAtasPage() {
                 <p className="text-slate-500 text-sm">{formatDate(m.createdAt)}</p>
               </div>
             ))}
-            {minutes.length === 0 && (
+            {visibleMinutes.length === 0 && (
               <p className="py-8 text-center text-slate-500 bg-white rounded-lg border">Nenhuma ata.</p>
             )}
           </div>
@@ -403,8 +404,9 @@ export default function PainelAtasPage() {
                     <span className="text-sm text-slate-500">{ataLabel(viewing)}</span>
                     <h2 className="text-lg font-bold text-blue-800">{viewing.title}</h2>
                   </div>
+                  <div className="flex gap-2 shrink-0 flex-wrap">
                   {canPost && (
-                    <div className="flex gap-2 shrink-0 flex-wrap">
+                    <>
                       <button
                         onClick={() => openEdit(viewing)}
                         className="px-3 py-1 text-blue-600 hover:bg-blue-50 rounded text-sm"
@@ -417,18 +419,19 @@ export default function PainelAtasPage() {
                       >
                         Excluir
                       </button>
-                      {viewing.status === 'publicada' && (
-                        <a
-                          href={`/api/minutes/${viewing.id}/word`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-block px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
-                        >
-                          Baixar em Word
-                        </a>
-                      )}
-                    </div>
+                    </>
                   )}
+                  {viewing.status === 'publicada' && (
+                    <a
+                      href={`/api/minutes/${viewing.id}/word`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
+                    >
+                      Baixar em Word
+                    </a>
+                  )}
+                </div>
                 </div>
                 <p className="text-slate-500 text-sm mb-4">{formatDate(viewing.createdAt)}</p>
                 <div className="text-slate-700 whitespace-pre-wrap">{viewing.content}</div>

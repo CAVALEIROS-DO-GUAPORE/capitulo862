@@ -7,6 +7,8 @@ import {
   canViewRollCalls,
   canAccessSecretariaDownloads,
   canAccessSecretaria,
+  SECRETARIA_OFFICER_ROLES,
+  hasPanelRole,
 } from '@/lib/panel-permissions';
 import { PanelAccessGate } from '@/components/PanelAccessGate';
 
@@ -25,7 +27,7 @@ export default function SecretariaPage() {
   const role = user?.role;
   const canAtas = canViewMinutes(role);
   const canChamada = canViewRollCalls(role);
-  const canConvites = canAccessSecretariaDownloads(role);
+  const canConvites = hasPanelRole(role, SECRETARIA_OFFICER_ROLES);
   const canDownloads = canAccessSecretariaDownloads(role);
 
   const cardBase = 'block p-6 rounded-lg border transition-all text-center ';

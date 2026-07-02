@@ -1,14 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getMinutes, getMembers, getRollCallByDate } from '@/lib/data';
 import { buildFilledAtaDocxBuffer } from '@/lib/build-ata-docx-buffer';
-import { requireRoles, MINUTES_EDITOR_ROLES } from '@/lib/panel-auth';
+import { requirePanelUser } from '@/lib/panel-auth';
 
 /** Preenche o modelo atareuniao.docx com as tags e devolve o Word para download. */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireRoles(request, MINUTES_EDITOR_ROLES);
+  const auth = await requirePanelUser(request);
   if (!auth.ok) return auth.response;
 
   try {

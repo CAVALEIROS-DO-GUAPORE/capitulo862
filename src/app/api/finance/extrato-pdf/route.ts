@@ -4,10 +4,10 @@ import fs from 'fs';
 import { getFinanceEntries } from '@/lib/data';
 import { buildExtratoFinanceiroPdf } from '@/lib/pdf-extrato-financeiro';
 import { CHAPTER_NAME, CHAPTER_NUMBER } from '@/data/mock';
-import { requireRoles, FINANCE_EDITOR_ROLES } from '@/lib/panel-auth';
+import { requirePanelUser } from '@/lib/panel-auth';
 
 export async function GET(request: NextRequest) {
-  const auth = await requireRoles(request, FINANCE_EDITOR_ROLES);
+  const auth = await requirePanelUser(request);
   if (!auth.ok) return auth.response;
 
   try {

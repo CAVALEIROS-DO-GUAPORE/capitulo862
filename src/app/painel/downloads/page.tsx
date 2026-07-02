@@ -3,12 +3,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { canAccessSecretariaDownloads } from '@/lib/panel-permissions';
 import { CANDIDATURA_DOWNLOAD_DEFS } from '@/lib/candidaturas-downloads';
 import { CERIMONIA_DOWNLOAD_DEFS } from '@/lib/cerimonias-downloads';
 
 const ROLES_PAUTAS = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'escrivao'];
-/** Quem pode acessar a página de Downloads e baixar arquivos. Tesoureiro incluído. */
-const ROLES_DOWNLOADS = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'escrivao', 'tesoureiro'];
 
 const CATEGORIA_CANETA_OURO = 'Caneta de Ouro';
 const CATEGORIA_CNIE = 'CNIE';
@@ -242,7 +241,7 @@ export default function DownloadsPage() {
     return !!user && item.requiredRole.includes(user.role);
   }
 
-  const canAccessDownloads = user?.role && ROLES_DOWNLOADS.includes(user.role);
+  const canAccessDownloads = canAccessSecretariaDownloads(user?.role);
 
   if (loading || !user) {
     return (
@@ -261,7 +260,7 @@ export default function DownloadsPage() {
           <div>
             <p className="text-amber-800 font-medium">Acesso restrito</p>
             <p className="text-amber-700 text-sm mt-1">
-              Apenas cargos com permissão (Mestre Conselheiro, 1º Conselheiro, Escrivão, Tesoureiro e Admin) podem acessar os downloads.
+              Apenas membros ativos do painel (DeMolays, Sêniores e Consultores) podem acessar os downloads.
             </p>
             <Link href="/painel/secretaria" className="inline-block mt-3 text-amber-800 font-medium hover:underline text-sm">
               ← Voltar à Secretaria
@@ -276,7 +275,7 @@ export default function DownloadsPage() {
     <div>
       <h1 className="text-2xl font-bold text-blue-800 mb-2">Downloads</h1>
       <p className="text-slate-600 mb-4">
-        Arquivos e modelos disponíveis para download. Alguns são restritos por cargo.
+        Arquivos e modelos disponíveis para todos os membros do painel. Apenas Pautas e Frequência exige cargo de diretoria/escrivania.
       </p>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">

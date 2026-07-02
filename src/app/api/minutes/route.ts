@@ -1,15 +1,19 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getMinutes, insertMinute, getNextAtaNumber } from '@/lib/data';
-import { requireRoles, MINUTES_EDITOR_ROLES } from '@/lib/panel-auth';
+import { requirePanelUser, requireRoles, MINUTES_EDITOR_ROLES } from '@/lib/panel-auth';
+import { canManageMinutes } from '@/lib/panel-permissions';
 import type { InternalMinutes, AtaType } from '@/types';
 
 export async function GET(request: NextRequest) {
-  const auth = await requireRoles(request, MINUTES_EDITOR_ROLES);
+  const auth = await requirePanelUser(request);
   if (!auth.ok) return auth.response;
 
   try {
     const minutes = await getMinutes();
-    return NextResponse.json(minutes);
+    const visible = canManageMinutes(auth.role)
+      ? minutes
+      : minutes.filter((m) => m.status === 'publicada');
+    return NextResponse.json(visible);
   } catch (err) {
     return NextResponse.json({ error: 'Erro ao carregar atas' }, { status: 500 });
   }

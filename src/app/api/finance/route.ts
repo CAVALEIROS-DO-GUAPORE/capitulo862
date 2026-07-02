@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getFinanceEntries, insertFinanceEntry } from '@/lib/data';
-import { requireRoles, FINANCE_EDITOR_ROLES } from '@/lib/panel-auth';
+import { requirePanelUser, requireRoles, FINANCE_EDITOR_ROLES } from '@/lib/panel-auth';
 import type { FinanceEntry } from '@/types';
 
 export async function GET(request: NextRequest) {
-  const auth = await requireRoles(request, FINANCE_EDITOR_ROLES);
+  const auth = await requirePanelUser(request);
   if (!auth.ok) return auth.response;
 
   try {
