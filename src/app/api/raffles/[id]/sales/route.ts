@@ -32,12 +32,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const auditor = await requireRaffleAuditor(request);
-  const seller = auditor.ok ? null : await requireRaffleSeller(request);
-  if (!auditor.ok && !seller.ok) {
-    return NextResponse.json(
-      { error: seller.status === 401 ? 'Não autorizado' : 'Sem permissão' },
-      { status: seller.status }
-    );
+  if (!auditor.ok) {
+    const seller = await requireRaffleSeller(request);
+    if (!seller.ok) {
+      return NextResponse.json(
+        { error: seller.status === 401 ? 'Não autorizado' : 'Sem permissão' },
+        { status: seller.status }
+      );
+    }
   }
 
   const { id } = await params;
