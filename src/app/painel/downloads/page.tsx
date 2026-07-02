@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useDialogs } from '@/components/DialogsProvider';
 import { canAccessSecretariaDownloads } from '@/lib/panel-permissions';
 import { CANDIDATURA_DOWNLOAD_DEFS } from '@/lib/candidaturas-downloads';
 import { CERIMONIA_DOWNLOAD_DEFS } from '@/lib/cerimonias-downloads';
-
-const ROLES_PAUTAS = ['admin', 'mestre_conselheiro', 'primeiro_conselheiro', 'escrivao'];
+import type { Edital } from '@/types';
 
 const CATEGORIA_CANETA_OURO = 'Caneta de Ouro';
 const CATEGORIA_CNIE = 'CNIE';
@@ -40,7 +40,6 @@ const DOWNLOADS: DownloadItem[] = [
     label: 'Pautas e Frequência (Excel)',
     description: 'Modelo em Excel para pautas e chamada de frequência.',
     endpoint: '/api/frequencia-modelo',
-    requiredRole: ROLES_PAUTAS,
     filename: 'pautas_e_frequencia.xlsx',
     category: CATEGORIA_CANETA_OURO,
   },
@@ -169,9 +168,17 @@ const CATEGORIAS = [
 type CategoriaFiltro = typeof CATEGORIAS[number] | 'Todos';
 
 export default function DownloadsPage() {
+  const { confirm, toast } = useDialogs();
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [categoriaFiltro, setCategoriaFiltro] = useState<CategoriaFiltro>(CATEGORIA_CANETA_OURO);
+  const [editais, setEditais] = useState<Edital[]>([]);
+  const [editaisLoading, setEditaisLoading] = useState(false);
+  const [canManageEditais, setCanManageEditais] = useState(false);
+  const [showEditalForm, setShowEditalForm] = useState(false);
+  const [savingEdital, setSavingEdital] = useState(false);
+  const [editalForm, setEditalForm] = useState({ title: '', description: '', pdf: null as File | null });
+  const [downloadingEditalId, setDownloadingEditalId] = useState<string | null>(null);
   const categoriasList: CategoriaFiltro[] = [
     CATEGORIA_CANETA_OURO,
     CATEGORIA_CNIE,
@@ -195,10 +202,48 @@ export default function DownloadsPage() {
     setLoading(false);
   }, [router]);
 
+  const loadEditais = useCallback(async () => {
+    setEditaisLoading(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/editais', { headers, credentials: 'include' });
+      const data = await res.json();
+      setEditais(res.ok && Array.isArray(data) ? data : []);
+    } catch {
+      setEditais([]);
+    } finally {
+      setEditaisLoading(false);
+    }
+  }, []);
+
+  const loadEditalAccess = useCallback(async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/editais/access', { headers, credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setCanManageEditais(!!data.canManage);
+      }
+    } catch {
+      setCanManageEditais(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    loadEditais();
+    loadEditalAccess();
+  }, [user, loadEditais, loadEditalAccess]);
+
+  const showEditaisSection =
+    categoriaFiltro === CATEGORIA_EDITAIS || categoriaFiltro === 'Todos';
+
   const itensFiltrados =
     categoriaFiltro === 'Todos'
       ? DOWNLOADS
-      : DOWNLOADS.filter((d) => d.category === categoriaFiltro);
+      : categoriaFiltro === CATEGORIA_EDITAIS
+        ? []
+        : DOWNLOADS.filter((d) => d.category === categoriaFiltro);
 
   async function handleDownload(item: DownloadItem) {
     const required = item.requiredRole;
@@ -241,6 +286,93 @@ export default function DownloadsPage() {
     return !!user && item.requiredRole.includes(user.role);
   }
 
+  async function handleDownloadEdital(edital: Edital) {
+    setDownloadingEditalId(edital.id);
+    try {
+      const res = await fetch(`/api/editais/${edital.id}/download`, {
+        headers: await getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Erro ${res.status}`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = edital.pdfFileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Erro ao baixar edital.', 'error');
+    } finally {
+      setDownloadingEditalId(null);
+    }
+  }
+
+  async function handlePublishEdital(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editalForm.title.trim()) {
+      toast('Informe o título do edital', 'error');
+      return;
+    }
+    if (!editalForm.pdf) {
+      toast('Selecione o arquivo PDF', 'error');
+      return;
+    }
+
+    setSavingEdital(true);
+    try {
+      const formData = new FormData();
+      formData.append('title', editalForm.title.trim());
+      formData.append('description', editalForm.description.trim());
+      formData.append('pdf', editalForm.pdf);
+
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/editais', {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao publicar edital');
+
+      toast('Edital publicado!');
+      setEditalForm({ title: '', description: '', pdf: null });
+      setShowEditalForm(false);
+      loadEditais();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Erro ao publicar edital', 'error');
+    } finally {
+      setSavingEdital(false);
+    }
+  }
+
+  async function handleDeleteEdital(edital: Edital) {
+    const ok = await confirm({
+      message: `Excluir o edital "${edital.title}"?`,
+      danger: true,
+      confirmLabel: 'Excluir',
+    });
+    if (!ok) return;
+
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/editais/${edital.id}`, {
+        method: 'DELETE',
+        headers,
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao excluir');
+      toast('Edital excluído');
+      loadEditais();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Erro ao excluir edital', 'error');
+    }
+  }
+
   const canAccessDownloads = canAccessSecretariaDownloads(user?.role);
 
   if (loading || !user) {
@@ -275,7 +407,7 @@ export default function DownloadsPage() {
     <div>
       <h1 className="text-2xl font-bold text-blue-800 mb-2">Downloads</h1>
       <p className="text-slate-600 mb-4">
-        Arquivos e modelos disponíveis para todos os membros do painel. Apenas Pautas e Frequência exige cargo de diretoria/escrivania.
+        Arquivos e modelos disponíveis para todos os membros do painel.
       </p>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
@@ -299,7 +431,7 @@ export default function DownloadsPage() {
       </div>
 
       <div className="grid gap-4">
-        {itensFiltrados.length === 0 ? (
+        {itensFiltrados.length === 0 && !showEditaisSection ? (
           <p className="py-10 text-center text-slate-500 bg-white rounded-lg border border-slate-200">
             Nenhum arquivo disponível em <strong className="text-slate-700">{categoriaFiltro}</strong> no momento.
           </p>
@@ -335,6 +467,138 @@ export default function DownloadsPage() {
               </div>
             );
           })
+        )}
+
+        {showEditaisSection && (
+          <div className={itensFiltrados.length > 0 ? 'pt-4 border-t border-slate-200' : ''}>
+            {categoriaFiltro === 'Todos' && (
+              <h2 className="text-lg font-bold text-blue-800 mb-4">Editais</h2>
+            )}
+
+            {canManageEditais && (
+              <div className="mb-4">
+                {!showEditalForm ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowEditalForm(true)}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
+                  >
+                    + Novo edital
+                  </button>
+                ) : (
+                  <form
+                    onSubmit={handlePublishEdital}
+                    className="bg-white rounded-lg border border-slate-200 p-5 space-y-4"
+                  >
+                    <h3 className="font-semibold text-slate-800">Publicar edital</h3>
+                    <label className="block">
+                      <span className="text-sm font-medium text-slate-700">Título *</span>
+                      <input
+                        required
+                        value={editalForm.title}
+                        onChange={(e) => setEditalForm({ ...editalForm, title: e.target.value })}
+                        className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2"
+                        placeholder="Ex.: Edital de Atividades Mensais — Março/2026"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-sm font-medium text-slate-700">Descrição</span>
+                      <textarea
+                        value={editalForm.description}
+                        onChange={(e) => setEditalForm({ ...editalForm, description: e.target.value })}
+                        className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2"
+                        rows={3}
+                        placeholder="Resumo ou observações sobre o edital"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-sm font-medium text-slate-700">Arquivo PDF *</span>
+                      <input
+                        required
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        onChange={(e) =>
+                          setEditalForm({ ...editalForm, pdf: e.target.files?.[0] ?? null })
+                        }
+                        className="mt-1 w-full text-sm"
+                      />
+                      <span className="text-xs text-slate-500 mt-1 block">Máximo 15 MB</span>
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="submit"
+                        disabled={savingEdital}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium"
+                      >
+                        {savingEdital ? 'Publicando...' : 'Publicar edital'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowEditalForm(false);
+                          setEditalForm({ title: '', description: '', pdf: null });
+                        }}
+                        className="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
+
+            {editaisLoading ? (
+              <p className="text-slate-500 text-sm py-6 text-center">Carregando editais...</p>
+            ) : editais.length === 0 ? (
+              <p className="py-10 text-center text-slate-500 bg-white rounded-lg border border-slate-200">
+                Nenhum edital publicado ainda.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {editais.map((edital) => (
+                  <div
+                    key={edital.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-white rounded-lg border border-slate-200"
+                  >
+                    <div>
+                      <h3 className="font-semibold text-slate-800">{edital.title}</h3>
+                      {edital.description && (
+                        <p className="text-sm text-slate-500 mt-1 whitespace-pre-wrap">{edital.description}</p>
+                      )}
+                      <p className="text-xs text-slate-400 mt-2">
+                        Publicado em{' '}
+                        {new Date(edital.createdAt).toLocaleDateString('pt-BR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                        })}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadEdital(edital)}
+                        disabled={downloadingEditalId === edital.id}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium"
+                      >
+                        {downloadingEditalId === edital.id ? 'Baixando...' : 'Baixar PDF'}
+                      </button>
+                      {canManageEditais && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEdital(edital)}
+                          className="px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium"
+                        >
+                          Excluir
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

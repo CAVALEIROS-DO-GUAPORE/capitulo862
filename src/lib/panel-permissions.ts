@@ -106,12 +106,6 @@ export function getPanelNavLinks(
   if (canViewFinance(role)) {
     links.push({ href: '/painel/financas', label: 'Finanças' });
   }
-  if (canViewMinutes(role)) {
-    links.push({ href: '/painel/atas', label: 'Atas' });
-  }
-  if (canViewRollCalls(role)) {
-    links.push({ href: '/painel/chamada', label: 'Frequência' });
-  }
   if (canAccessSecretaria(role)) {
     links.push({ href: '/painel/secretaria', label: 'Secretaria' });
   }

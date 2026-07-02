@@ -1,12 +1,13 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { parseMemberBadges } from '@/lib/member-badges';
 import { sanitizePublicRaffle } from '@/lib/raffles-security';
-import type { Member, News, InternalMinutes, FinanceEntry, FinanceReceipt, CalendarEvent, RollCall, MembershipCandidate, MemberAdditionalRole, CandidateDocument, MeetingType, Raffle, RaffleSale, RaffleSoldNumber, PublicRaffle, RaffleStatus, RaffleSoldReportRow } from '@/types';
+import type { Member, News, InternalMinutes, FinanceEntry, FinanceReceipt, CalendarEvent, RollCall, MembershipCandidate, MemberAdditionalRole, CandidateDocument, MeetingType, Raffle, RaffleSale, RaffleSoldNumber, PublicRaffle, RaffleStatus, RaffleSoldReportRow, Edital } from '@/types';
 
 export const FINANCE_RECEIPTS_BUCKET = 'finance-receipts';
 export const CANDIDATE_DOCUMENTS_BUCKET = 'candidate-documents';
 export const RAFFLE_RECEIPTS_BUCKET = 'raffle-receipts';
 export const RAFFLE_IMAGES_BUCKET = 'raffle-images';
+export const EDITAL_PDFS_BUCKET = 'edital-pdfs';
 
 function parseAdditionalRoles(raw: unknown): MemberAdditionalRole[] {
   if (!Array.isArray(raw)) return [];
@@ -1271,3 +1272,94 @@ export async function deleteRaffleSoldNumber(
 
   return { deleted: true, saleDeleted: true };
 }
+
+function toEdital(row: Record<string, unknown>): Edital {
+  return {
+    id: String(row.id),
+    title: String(row.title),
+    description: String(row.description ?? ''),
+    pdfFileName: String(row.pdf_file_name),
+    createdBy: row.created_by ? String(row.created_by) : undefined,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  };
+}
+
+export async function getEditais(): Promise<Edital[]> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('editais')
+    .select('id, title, description, pdf_file_name, created_by, created_at, updated_at')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map((row) => toEdital(row as Record<string, unknown>));
+}
+
+export async function getEditalById(id: string): Promise<(Edital & { pdfPath: string }) | null> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('editais')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    ...toEdital(data as Record<string, unknown>),
+    pdfPath: String((data as Record<string, unknown>).pdf_path),
+  };
+}
+
+export interface InsertEditalOptions {
+  title: string;
+  description: string;
+  pdfPath: string;
+  pdfFileName: string;
+  createdBy: string;
+}
+
+export async function insertEdital(opts: InsertEditalOptions): Promise<Edital> {
+  const supabase = createAdminClient();
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('editais')
+    .insert({
+      title: opts.title,
+      description: opts.description,
+      pdf_path: opts.pdfPath,
+      pdf_file_name: opts.pdfFileName,
+      created_by: opts.createdBy,
+      created_at: now,
+      updated_at: now,
+    })
+    .select('id, title, description, pdf_file_name, created_by, created_at, updated_at')
+    .single();
+  if (error) throw error;
+  return toEdital(data as Record<string, unknown>);
+}
+
+export async function deleteEdital(id: string): Promise<boolean> {
+  const supabase = createAdminClient();
+  const existing = await getEditalById(id);
+  if (!existing) return false;
+
+  const { error } = await supabase.from('editais').delete().eq('id', id);
+  if (error) throw error;
+
+  try {
+    await supabase.storage.from(EDITAL_PDFS_BUCKET).remove([existing.pdfPath]);
+  } catch {
+    /* ignore storage cleanup failure */
+  }
+
+  return true;
+}
+
+export async function downloadEditalPdf(storagePath: string): Promise<{ buffer: Buffer; contentType: string }> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.storage.from(EDITAL_PDFS_BUCKET).download(storagePath);
+  if (error || !data) throw error ?? new Error('PDF não encontrado');
+  const buffer = Buffer.from(await data.arrayBuffer());
+  return { buffer, contentType: data.type || 'application/pdf' };
+}
+

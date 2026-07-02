@@ -257,3 +257,13 @@ export interface RaffleSoldReportRow {
 export interface PublicRaffle extends Raffle {
   soldNumbers: RaffleSoldNumber[];
 }
+
+export interface Edital {
+  id: string;
+  title: string;
+  description: string;
+  pdfFileName: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}

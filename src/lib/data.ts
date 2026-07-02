@@ -59,6 +59,12 @@ export {
   deleteRaffleSoldNumber,
   RAFFLE_RECEIPTS_BUCKET,
   RAFFLE_IMAGES_BUCKET,
+  getEditais,
+  getEditalById,
+  insertEdital,
+  deleteEdital,
+  downloadEditalPdf,
+  EDITAL_PDFS_BUCKET,
 } from './supabase-data';
 
 export function generateId() {
