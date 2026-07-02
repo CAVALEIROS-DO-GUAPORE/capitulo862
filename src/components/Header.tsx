@@ -12,6 +12,7 @@ export default function Header() {
     { href: '/sobre', label: 'Sobre Nós' },
     { href: '/membros', label: 'Membros' },
     { href: '/noticias', label: 'Notícias' },
+    { href: '/sorteios', label: 'Sorteios' },
     { href: '/login', label: 'Área do Membro' },
   ];
 

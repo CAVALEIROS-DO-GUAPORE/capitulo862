@@ -1,9 +1,12 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { parseMemberBadges } from '@/lib/member-badges';
-import type { Member, News, InternalMinutes, FinanceEntry, FinanceReceipt, CalendarEvent, RollCall, MembershipCandidate, MemberAdditionalRole, CandidateDocument, MeetingType } from '@/types';
+import { sanitizePublicRaffle } from '@/lib/raffles-security';
+import type { Member, News, InternalMinutes, FinanceEntry, FinanceReceipt, CalendarEvent, RollCall, MembershipCandidate, MemberAdditionalRole, CandidateDocument, MeetingType, Raffle, RaffleSale, RaffleSoldNumber, PublicRaffle, RaffleStatus } from '@/types';
 
 export const FINANCE_RECEIPTS_BUCKET = 'finance-receipts';
 export const CANDIDATE_DOCUMENTS_BUCKET = 'candidate-documents';
+export const RAFFLE_RECEIPTS_BUCKET = 'raffle-receipts';
+export const RAFFLE_IMAGES_BUCKET = 'raffle-images';
 
 function parseAdditionalRoles(raw: unknown): MemberAdditionalRole[] {
   if (!Array.isArray(raw)) return [];
@@ -882,4 +885,280 @@ export async function deleteCandidate(id: string): Promise<void> {
   await deleteAllCandidateDocuments(id);
   const { error } = await supabase.from('membership_candidates').delete().eq('id', id);
   if (error) throw error;
+}
+
+// ---------- Raffles ----------
+function toRaffle(row: Record<string, unknown>): Raffle {
+  const prizes = Array.isArray(row.prizes) ? (row.prizes as string[]) : [];
+  return {
+    id: String(row.id),
+    title: String(row.title),
+    description: row.description ? String(row.description) : undefined,
+    pricePerNumber: Number(row.price_per_number ?? 0),
+    prizes,
+    drawAt: String(row.draw_at ?? ''),
+    whatsappContact: String(row.whatsapp_contact ?? ''),
+    pixKey: String(row.pix_key ?? ''),
+    totalNumbers: Number(row.total_numbers ?? 100),
+    status: (row.status as RaffleStatus) || 'active',
+    bannerUrl: row.banner_url ? String(row.banner_url) : undefined,
+    createdBy: row.created_by ? String(row.created_by) : undefined,
+    createdAt: String(row.created_at ?? ''),
+    updatedAt: String(row.updated_at ?? ''),
+    soldCount: row.sold_count != null ? Number(row.sold_count) : undefined,
+  };
+}
+
+function toRaffleSale(row: Record<string, unknown>, numbers: number[] = []): RaffleSale {
+  return {
+    id: String(row.id),
+    raffleId: String(row.raffle_id),
+    buyerName: String(row.buyer_name),
+    buyerPhone: String(row.buyer_phone),
+    buyerPhoneExtra: row.buyer_phone_extra ? String(row.buyer_phone_extra) : undefined,
+    sellerUserId: row.seller_user_id ? String(row.seller_user_id) : undefined,
+    receiptPath: row.receipt_path ? String(row.receipt_path) : undefined,
+    receiptFileName: row.receipt_file_name ? String(row.receipt_file_name) : undefined,
+    numbers,
+    createdAt: String(row.created_at ?? ''),
+  };
+}
+
+export async function getRaffles(opts?: { status?: RaffleStatus }): Promise<Raffle[]> {
+  const supabase = createAdminClient();
+  let query = supabase.from('raffles').select('*').order('draw_at', { ascending: false });
+  if (opts?.status) query = query.eq('status', opts.status);
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const raffles = (data || []).map(toRaffle);
+  if (raffles.length === 0) return raffles;
+
+  const ids = raffles.map((r) => r.id);
+  const { data: counts, error: countError } = await supabase
+    .from('raffle_sale_numbers')
+    .select('raffle_id')
+    .in('raffle_id', ids);
+  if (countError) throw countError;
+
+  const countMap = new Map<string, number>();
+  for (const row of counts || []) {
+    const id = String(row.raffle_id);
+    countMap.set(id, (countMap.get(id) || 0) + 1);
+  }
+  return raffles.map((r) => ({ ...r, soldCount: countMap.get(r.id) || 0 }));
+}
+
+export async function getRaffleById(id: string): Promise<Raffle | null> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.from('raffles').select('*').eq('id', id).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const raffle = toRaffle(data);
+  const { count } = await supabase
+    .from('raffle_sale_numbers')
+    .select('*', { count: 'exact', head: true })
+    .eq('raffle_id', id);
+  return { ...raffle, soldCount: count ?? 0 };
+}
+
+export async function getRaffleSoldNumbers(raffleId: string): Promise<RaffleSoldNumber[]> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('raffle_sale_numbers')
+    .select('number, buyer_name')
+    .eq('raffle_id', raffleId)
+    .order('number', { ascending: true });
+  if (error) throw error;
+  return (data || []).map((row) => ({
+    number: Number(row.number),
+    buyerName: String(row.buyer_name),
+  }));
+}
+
+export async function getPublicRaffles(): Promise<PublicRaffle[]> {
+  const raffles = await getRaffles({ status: 'active' });
+  const result: PublicRaffle[] = [];
+  for (const raffle of raffles) {
+    const soldNumbers = await getRaffleSoldNumbers(raffle.id);
+    result.push(sanitizePublicRaffle(raffle, soldNumbers));
+  }
+  return result;
+}
+
+export interface InsertRaffleOptions {
+  title: string;
+  description?: string;
+  pricePerNumber: number;
+  prizes: string[];
+  drawAt: string;
+  whatsappContact: string;
+  pixKey: string;
+  totalNumbers: number;
+  bannerUrl?: string;
+  createdBy?: string;
+}
+
+export async function insertRaffle(opts: InsertRaffleOptions): Promise<Raffle> {
+  const supabase = createAdminClient();
+  const row = {
+    title: opts.title.trim(),
+    description: opts.description?.trim() || null,
+    price_per_number: opts.pricePerNumber,
+    prizes: opts.prizes,
+    draw_at: opts.drawAt,
+    whatsapp_contact: opts.whatsappContact.trim(),
+    pix_key: opts.pixKey.trim(),
+    total_numbers: opts.totalNumbers,
+    banner_url: opts.bannerUrl?.trim() || null,
+    status: 'active',
+    created_by: opts.createdBy ?? null,
+    updated_at: new Date().toISOString(),
+  };
+  const { data, error } = await supabase.from('raffles').insert(row).select('*').single();
+  if (error) throw error;
+  return toRaffle(data);
+}
+
+export async function updateRaffle(id: string, partial: Partial<InsertRaffleOptions> & { status?: RaffleStatus }): Promise<Raffle> {
+  const supabase = createAdminClient();
+
+  if (partial.totalNumbers !== undefined) {
+    const current = await getRaffleById(id);
+    if (!current) throw new Error('Sorteio não encontrado');
+    const sold = current.soldCount ?? 0;
+    if (partial.totalNumbers < sold) {
+      throw new Error(`Não é possível reduzir abaixo de ${sold} números já vendidos`);
+    }
+    if (partial.totalNumbers > 10000) {
+      throw new Error('Quantidade máxima de números é 10000');
+    }
+  }
+
+  const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (partial.title !== undefined) row.title = partial.title.trim();
+  if (partial.description !== undefined) row.description = partial.description?.trim() || null;
+  if (partial.pricePerNumber !== undefined) row.price_per_number = partial.pricePerNumber;
+  if (partial.prizes !== undefined) row.prizes = partial.prizes;
+  if (partial.drawAt !== undefined) row.draw_at = partial.drawAt;
+  if (partial.whatsappContact !== undefined) row.whatsapp_contact = partial.whatsappContact.trim();
+  if (partial.pixKey !== undefined) row.pix_key = partial.pixKey.trim();
+  if (partial.totalNumbers !== undefined) row.total_numbers = partial.totalNumbers;
+  if (partial.bannerUrl !== undefined) row.banner_url = partial.bannerUrl?.trim() || null;
+  if (partial.status !== undefined) row.status = partial.status;
+  const { data, error } = await supabase.from('raffles').update(row).eq('id', id).select('*').single();
+  if (error) throw error;
+  return toRaffle(data);
+}
+
+export async function deleteRaffle(id: string): Promise<void> {
+  const supabase = createAdminClient();
+  const sales = await getRaffleSales(id);
+  for (const sale of sales) {
+    if (sale.receiptPath) {
+      await supabase.storage.from(RAFFLE_RECEIPTS_BUCKET).remove([sale.receiptPath]);
+    }
+  }
+  const { error } = await supabase.from('raffles').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function getRaffleSales(raffleId: string): Promise<RaffleSale[]> {
+  const supabase = createAdminClient();
+  const { data: sales, error } = await supabase
+    .from('raffle_sales')
+    .select('*')
+    .eq('raffle_id', raffleId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  if (!sales?.length) return [];
+
+  const saleIds = sales.map((s) => s.id);
+  const { data: numbers, error: numError } = await supabase
+    .from('raffle_sale_numbers')
+    .select('sale_id, number')
+    .in('sale_id', saleIds)
+    .order('number', { ascending: true });
+  if (numError) throw numError;
+
+  const numbersBySale = new Map<string, number[]>();
+  for (const row of numbers || []) {
+    const sid = String(row.sale_id);
+    const list = numbersBySale.get(sid) || [];
+    list.push(Number(row.number));
+    numbersBySale.set(sid, list);
+  }
+
+  return sales.map((s) => toRaffleSale(s, numbersBySale.get(String(s.id)) || []));
+}
+
+export interface InsertRaffleSaleOptions {
+  raffleId: string;
+  buyerName: string;
+  buyerPhone: string;
+  buyerPhoneExtra?: string;
+  numbers: number[];
+  sellerUserId?: string;
+  receiptPath?: string;
+  receiptFileName?: string;
+}
+
+export async function insertRaffleSale(opts: InsertRaffleSaleOptions): Promise<RaffleSale> {
+  const supabase = createAdminClient();
+  const { MAX_NUMBERS_PER_SALE } = await import('@/lib/raffles-security');
+
+  const raffle = await getRaffleById(opts.raffleId);
+  if (!raffle) throw new Error('Sorteio não encontrado');
+  if (raffle.status !== 'active') throw new Error('Este sorteio não está ativo para vendas');
+
+  const uniqueNumbers = [...new Set(opts.numbers)].sort((a, b) => a - b);
+  if (uniqueNumbers.length === 0) throw new Error('Selecione ao menos um número');
+  if (uniqueNumbers.length > MAX_NUMBERS_PER_SALE) {
+    throw new Error(`Máximo de ${MAX_NUMBERS_PER_SALE} números por venda`);
+  }
+  for (const n of uniqueNumbers) {
+    if (n < 1 || n > raffle.totalNumbers) {
+      throw new Error(`Número ${n} inválido para este sorteio`);
+    }
+  }
+
+  const { data: taken, error: takenError } = await supabase
+    .from('raffle_sale_numbers')
+    .select('number')
+    .eq('raffle_id', opts.raffleId)
+    .in('number', uniqueNumbers);
+  if (takenError) throw takenError;
+  if (taken && taken.length > 0) {
+    const nums = taken.map((t) => t.number).join(', ');
+    throw new Error(`Número(s) já vendido(s): ${nums}`);
+  }
+
+  const { data: sale, error: saleError } = await supabase
+    .from('raffle_sales')
+    .insert({
+      raffle_id: opts.raffleId,
+      buyer_name: opts.buyerName,
+      buyer_phone: opts.buyerPhone,
+      buyer_phone_extra: opts.buyerPhoneExtra || null,
+      seller_user_id: opts.sellerUserId ?? null,
+      receipt_path: opts.receiptPath ?? null,
+      receipt_file_name: opts.receiptFileName ?? null,
+    })
+    .select('*')
+    .single();
+  if (saleError) throw saleError;
+
+  const numberRows = uniqueNumbers.map((number) => ({
+    raffle_id: opts.raffleId,
+    number,
+    sale_id: sale.id,
+    buyer_name: opts.buyerName,
+  }));
+  const { error: numInsertError } = await supabase.from('raffle_sale_numbers').insert(numberRows);
+  if (numInsertError) {
+    await supabase.from('raffle_sales').delete().eq('id', sale.id);
+    throw numInsertError;
+  }
+
+  return toRaffleSale(sale, uniqueNumbers);
 }

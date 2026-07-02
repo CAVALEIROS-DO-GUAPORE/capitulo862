@@ -6,6 +6,11 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'jaiirortxukpaifwozgz.supabase.co', pathname: '/storage/v1/object/public/**' },
     ],
   },
+  async redirects() {
+    return [
+      { source: '/rifas', destination: '/sorteios', permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

@@ -44,6 +44,17 @@ export {
   deleteCandidateDocument,
   downloadCandidateDocumentFile,
   CANDIDATE_DOCUMENTS_BUCKET,
+  getRaffles,
+  getRaffleById,
+  getRaffleSoldNumbers,
+  getPublicRaffles,
+  insertRaffle,
+  updateRaffle,
+  deleteRaffle,
+  getRaffleSales,
+  insertRaffleSale,
+  RAFFLE_RECEIPTS_BUCKET,
+  RAFFLE_IMAGES_BUCKET,
 } from './supabase-data';
 
 export function generateId() {

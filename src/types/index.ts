@@ -205,3 +205,45 @@ export interface CandidateDocument {
   fileSize: number;
   createdAt: string;
 }
+
+export type RaffleStatus = 'active' | 'closed' | 'drawn';
+
+export interface Raffle {
+  id: string;
+  title: string;
+  description?: string;
+  pricePerNumber: number;
+  prizes: string[];
+  drawAt: string;
+  whatsappContact: string;
+  pixKey: string;
+  totalNumbers: number;
+  status: RaffleStatus;
+  bannerUrl?: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+  soldCount?: number;
+}
+
+export interface RaffleSoldNumber {
+  number: number;
+  buyerName: string;
+}
+
+export interface RaffleSale {
+  id: string;
+  raffleId: string;
+  buyerName: string;
+  buyerPhone: string;
+  buyerPhoneExtra?: string;
+  sellerUserId?: string;
+  receiptPath?: string;
+  receiptFileName?: string;
+  numbers: number[];
+  createdAt: string;
+}
+
+export interface PublicRaffle extends Raffle {
+  soldNumbers: RaffleSoldNumber[];
+}

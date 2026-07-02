@@ -49,6 +49,10 @@ export function canAccessSecretaria(role: string | undefined | null): boolean {
   );
 }
 
+export function canViewRaffles(role: string | undefined | null): boolean {
+  return !!role;
+}
+
 export interface PanelNavItem {
   href: string;
   label: string;
@@ -75,6 +79,9 @@ export function getPanelNavLinks(
     { href: '/painel/noticias', label: 'Notícias' },
     { href: '/painel/calendario', label: 'Calendário' }
   );
+  if (canViewRaffles(role)) {
+    links.push({ href: '/painel/rifas', label: 'Sorteios' });
+  }
   if (canViewFinance(role)) {
     links.push({ href: '/painel/financas', label: 'Finanças' });
   }
@@ -117,6 +124,13 @@ export function getPanelHomeCards(
     { href: '/painel/noticias', label: 'Notícias', desc: 'Ver e publicar notícias' },
     { href: '/painel/calendario', label: 'Calendário', desc: 'Eventos e ritualísticas' }
   );
+  if (canViewRaffles(role)) {
+    cards.push({
+      href: '/painel/rifas',
+      label: 'Sorteios',
+      desc: 'Cadastrar sorteios e vender números',
+    });
+  }
   if (canViewMinutes(role)) {
     cards.push({ href: '/painel/atas', label: 'Atas', desc: 'Atas internas das reuniões' });
   }
