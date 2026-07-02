@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
+import { createClient } from '@/lib/supabase/client';
 import type { PublicRaffle } from '@/types';
 import { formatCurrency, formatDrawDate, whatsappUrl } from '@/lib/raffles-utils';
 
@@ -61,13 +62,32 @@ export default function SorteiosPublicPage() {
   const [raffles, setRaffles] = useState<PublicRaffle[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadRaffles = useCallback(function loadRaffles() {
     fetch('/api/raffles/public')
       .then((r) => r.json())
       .then((data) => setRaffles(Array.isArray(data) ? data : []))
       .catch(() => setRaffles([]))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadRaffles();
+  }, [loadRaffles]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel('sorteios-public-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'raffle_sale_numbers' },
+        () => loadRaffles()
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadRaffles]);
 
   return (
     <div className="py-8 px-4">

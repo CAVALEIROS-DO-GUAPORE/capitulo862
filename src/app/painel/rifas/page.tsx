@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useDialogs } from '@/components/DialogsProvider';
@@ -110,6 +110,32 @@ export default function PainelRifasPage() {
     loadRaffles();
   }, [loadAccess, loadRaffles]);
 
+  const selectedRaffleIdRef = useRef<string | null>(null);
+  selectedRaffleIdRef.current = selectedRaffle?.id ?? null;
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel('raffles-panel-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'raffle_sale_numbers' },
+        () => {
+          loadRaffles();
+          const id = selectedRaffleIdRef.current;
+          if (id) {
+            loadRaffleDetail(id)
+              .then(setSelectedRaffle)
+              .catch(() => {});
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadRaffles, loadRaffleDetail]);
+
   const soldSet = useMemo(
     () => new Set(selectedRaffle?.soldNumbers.map((s) => s.number) ?? []),
     [selectedRaffle]
@@ -119,6 +145,15 @@ export default function PainelRifasPage() {
     if (!selectedRaffle) return 0;
     return saleForm.selectedNumbers.length * selectedRaffle.pricePerNumber;
   }, [selectedRaffle, saleForm.selectedNumbers]);
+
+  useEffect(() => {
+    setSaleForm((prev) => {
+      const stillAvailable = prev.selectedNumbers.filter((n) => !soldSet.has(n));
+      if (stillAvailable.length === prev.selectedNumbers.length) return prev;
+      toast('Alguns números selecionados acabaram de ser vendidos por outro irmão.', 'error');
+      return { ...prev, selectedNumbers: stillAvailable };
+    });
+  }, [soldSet, toast]);
 
   function resetCreateForm() {
     setForm(EMPTY_FORM);

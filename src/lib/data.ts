@@ -52,7 +52,11 @@ export {
   updateRaffle,
   deleteRaffle,
   getRaffleSales,
+  getRaffleSaleById,
+  getRaffleSoldReportRows,
   insertRaffleSale,
+  downloadRaffleReceiptFile,
+  deleteRaffleSoldNumber,
   RAFFLE_RECEIPTS_BUCKET,
   RAFFLE_IMAGES_BUCKET,
 } from './supabase-data';

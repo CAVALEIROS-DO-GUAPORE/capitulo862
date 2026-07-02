@@ -5,7 +5,7 @@ import {
   insertRaffleSale,
   RAFFLE_RECEIPTS_BUCKET,
 } from '@/lib/data';
-import { requireRaffleSeller } from '@/lib/raffles-auth';
+import { requireRaffleAuditor, requireRaffleSeller } from '@/lib/raffles-auth';
 import { formatBuyerName } from '@/lib/raffles-utils';
 import { compressReceiptFile, sanitizeFileName } from '@/lib/compress-receipt';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -31,8 +31,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const seller = await requireRaffleSeller(request);
-  if (!seller.ok) {
+  const auditor = await requireRaffleAuditor(request);
+  const seller = auditor.ok ? null : await requireRaffleSeller(request);
+  if (!auditor.ok && !seller.ok) {
     return NextResponse.json(
       { error: seller.status === 401 ? 'Não autorizado' : 'Sem permissão' },
       { status: seller.status }
@@ -49,13 +50,23 @@ export async function GET(
 
   try {
     const sales = await getRaffleSales(id);
+    if (auditor.ok) {
+      return NextResponse.json(
+        sales.map(({ receiptPath, ...rest }) => ({
+          ...rest,
+          hasReceipt: !!receiptPath,
+        }))
+      );
+    }
     return NextResponse.json(
       sales.map(({ receiptPath, buyerPhone, buyerPhoneExtra, ...rest }) => ({
         ...rest,
+        hasReceipt: !!receiptPath,
         buyerPhone: buyerPhone.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) *****-$3'),
         buyerPhoneExtra: buyerPhoneExtra
           ? buyerPhoneExtra.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) *****-$3')
           : undefined,
+        receiptFileName: undefined,
       }))
     );
   } catch (err) {

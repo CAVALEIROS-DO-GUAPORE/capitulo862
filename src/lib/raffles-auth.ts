@@ -29,6 +29,15 @@ export async function canManageRaffles(request: NextRequest): Promise<boolean> {
   return isConsultivoMember(user.id);
 }
 
+export async function canAuditRaffles(request: NextRequest): Promise<boolean> {
+  const user = await getRequestUser(request);
+  if (!user) return false;
+
+  const role = await getActiveProfileRole(user.id);
+  if (role === 'admin' || role === 'mestre_conselheiro' || role === 'primeiro_conselheiro') return true;
+  return isConsultivoMember(user.id);
+}
+
 /** Apenas usuários ativos com cargo válido do painel podem vender números. */
 export async function canSellRaffles(request: NextRequest): Promise<boolean> {
   const user = await getRequestUser(request);
@@ -52,5 +61,14 @@ export async function requireRaffleSeller(request: NextRequest) {
   if (!role || !(PANEL_ROLES as readonly string[]).includes(role)) {
     return { ok: false as const, status: 403 as const };
   }
+  return { ok: true as const, user, role };
+}
+
+export async function requireRaffleAuditor(request: NextRequest) {
+  const user = await getRequestUser(request);
+  if (!user) return { ok: false as const, status: 401 as const };
+  const allowed = await canAuditRaffles(request);
+  if (!allowed) return { ok: false as const, status: 403 as const };
+  const role = await getActiveProfileRole(user.id);
   return { ok: true as const, user, role };
 }

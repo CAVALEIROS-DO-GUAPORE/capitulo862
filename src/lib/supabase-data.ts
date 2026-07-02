@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { parseMemberBadges } from '@/lib/member-badges';
 import { sanitizePublicRaffle } from '@/lib/raffles-security';
-import type { Member, News, InternalMinutes, FinanceEntry, FinanceReceipt, CalendarEvent, RollCall, MembershipCandidate, MemberAdditionalRole, CandidateDocument, MeetingType, Raffle, RaffleSale, RaffleSoldNumber, PublicRaffle, RaffleStatus } from '@/types';
+import type { Member, News, InternalMinutes, FinanceEntry, FinanceReceipt, CalendarEvent, RollCall, MembershipCandidate, MemberAdditionalRole, CandidateDocument, MeetingType, Raffle, RaffleSale, RaffleSoldNumber, PublicRaffle, RaffleStatus, RaffleSoldReportRow } from '@/types';
 
 export const FINANCE_RECEIPTS_BUCKET = 'finance-receipts';
 export const CANDIDATE_DOCUMENTS_BUCKET = 'candidate-documents';
@@ -1092,6 +1092,29 @@ export async function getRaffleSales(raffleId: string): Promise<RaffleSale[]> {
   return sales.map((s) => toRaffleSale(s, numbersBySale.get(String(s.id)) || []));
 }
 
+export async function getRaffleSoldReportRows(raffleId: string): Promise<RaffleSoldReportRow[]> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('raffle_sale_numbers')
+    .select('raffle_id, number, sale_id, buyer_name, raffle_sales!inner(buyer_phone, buyer_phone_extra, created_at)')
+    .eq('raffle_id', raffleId)
+    .order('number', { ascending: true });
+  if (error) throw error;
+
+  return (data || []).map((row) => {
+    const sale = (row as unknown as { raffle_sales?: { buyer_phone: string; buyer_phone_extra?: string | null; created_at: string } }).raffle_sales;
+    return {
+      raffleId: String((row as any).raffle_id),
+      saleId: String((row as any).sale_id),
+      number: Number((row as any).number),
+      buyerName: String((row as any).buyer_name),
+      buyerPhone: sale?.buyer_phone ? String(sale.buyer_phone) : '',
+      buyerPhoneExtra: sale?.buyer_phone_extra ? String(sale.buyer_phone_extra) : undefined,
+      soldAt: sale?.created_at ? String(sale.created_at) : '',
+    };
+  });
+}
+
 export interface InsertRaffleSaleOptions {
   raffleId: string;
   buyerName: string;
@@ -1161,4 +1184,90 @@ export async function insertRaffleSale(opts: InsertRaffleSaleOptions): Promise<R
   }
 
   return toRaffleSale(sale, uniqueNumbers);
+}
+
+export async function getRaffleSaleById(raffleId: string, saleId: string): Promise<RaffleSale | null> {
+  const supabase = createAdminClient();
+  const { data: sale, error } = await supabase
+    .from('raffle_sales')
+    .select('*')
+    .eq('id', saleId)
+    .eq('raffle_id', raffleId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!sale) return null;
+
+  const { data: numbers, error: numError } = await supabase
+    .from('raffle_sale_numbers')
+    .select('number')
+    .eq('sale_id', saleId)
+    .order('number', { ascending: true });
+  if (numError) throw numError;
+
+  return toRaffleSale(sale, (numbers || []).map((n) => Number(n.number)));
+}
+
+export async function downloadRaffleReceiptFile(storagePath: string): Promise<{ buffer: Buffer; contentType: string }> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.storage.from(RAFFLE_RECEIPTS_BUCKET).download(storagePath);
+  if (error || !data) throw error ?? new Error('Comprovante não encontrado');
+  const buffer = Buffer.from(await data.arrayBuffer());
+  return { buffer, contentType: data.type || 'application/octet-stream' };
+}
+
+export async function deleteRaffleSoldNumber(
+  raffleId: string,
+  number: number
+): Promise<{ deleted: boolean; saleDeleted: boolean }> {
+  const supabase = createAdminClient();
+
+  const { data: row, error: findError } = await supabase
+    .from('raffle_sale_numbers')
+    .select('sale_id')
+    .eq('raffle_id', raffleId)
+    .eq('number', number)
+    .maybeSingle();
+  if (findError) throw findError;
+  if (!row) return { deleted: false, saleDeleted: false };
+
+  const saleId = String(row.sale_id);
+
+  const { error: delNumError } = await supabase
+    .from('raffle_sale_numbers')
+    .delete()
+    .eq('raffle_id', raffleId)
+    .eq('number', number);
+  if (delNumError) throw delNumError;
+
+  const { count, error: countError } = await supabase
+    .from('raffle_sale_numbers')
+    .select('*', { count: 'exact', head: true })
+    .eq('sale_id', saleId);
+  if (countError) throw countError;
+
+  if ((count ?? 0) > 0) {
+    return { deleted: true, saleDeleted: false };
+  }
+
+  const { data: sale, error: saleError } = await supabase
+    .from('raffle_sales')
+    .select('receipt_path')
+    .eq('id', saleId)
+    .maybeSingle();
+  if (saleError) throw saleError;
+
+  const receiptPath = sale?.receipt_path ? String(sale.receipt_path) : null;
+
+  const { error: delSaleError } = await supabase.from('raffle_sales').delete().eq('id', saleId);
+  if (delSaleError) throw delSaleError;
+
+  if (receiptPath) {
+    try {
+      await supabase.storage.from(RAFFLE_RECEIPTS_BUCKET).remove([receiptPath]);
+    } catch {
+      /* ignore storage cleanup failure */
+    }
+  }
+
+  return { deleted: true, saleDeleted: true };
 }

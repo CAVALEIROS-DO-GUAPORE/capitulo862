@@ -244,6 +244,16 @@ export interface RaffleSale {
   createdAt: string;
 }
 
+export interface RaffleSoldReportRow {
+  raffleId: string;
+  saleId: string;
+  number: number;
+  buyerName: string;
+  buyerPhone: string;
+  buyerPhoneExtra?: string;
+  soldAt: string;
+}
+
 export interface PublicRaffle extends Raffle {
   soldNumbers: RaffleSoldNumber[];
 }
