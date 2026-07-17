@@ -102,6 +102,13 @@ export default function SecretariaPage() {
               </p>
             </div>
           )}
+
+          <Link href="/painel/ouvidoria" className={cardBase + cardEnabled}>
+            <span className="text-lg font-semibold text-blue-800">Ouvidoria</span>
+            <p className="text-slate-500 text-sm mt-1">
+              Reclamações, sugestões e elogios (confidencial)
+            </p>
+          </Link>
         </div>
       </div>
     </PanelAccessGate>

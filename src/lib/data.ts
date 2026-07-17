@@ -65,6 +65,9 @@ export {
   deleteEdital,
   downloadEditalPdf,
   EDITAL_PDFS_BUCKET,
+  getChapterFeedback,
+  insertChapterFeedback,
+  deleteChapterFeedback,
 } from './supabase-data';
 
 export function generateId() {

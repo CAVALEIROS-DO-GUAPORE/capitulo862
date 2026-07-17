@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { parseMemberBadges } from '@/lib/member-badges';
 import { sanitizePublicRaffle } from '@/lib/raffles-security';
-import type { Member, News, InternalMinutes, FinanceEntry, FinanceReceipt, CalendarEvent, RollCall, MembershipCandidate, MemberAdditionalRole, CandidateDocument, MeetingType, Raffle, RaffleSale, RaffleSoldNumber, PublicRaffle, RaffleStatus, RaffleSoldReportRow, Edital } from '@/types';
+import type { Member, News, InternalMinutes, FinanceEntry, FinanceReceipt, CalendarEvent, RollCall, MembershipCandidate, MemberAdditionalRole, CandidateDocument, MeetingType, Raffle, RaffleSale, RaffleSoldNumber, PublicRaffle, RaffleStatus, RaffleSoldReportRow, Edital, ChapterFeedback, FeedbackType } from '@/types';
 
 export const FINANCE_RECEIPTS_BUCKET = 'finance-receipts';
 export const CANDIDATE_DOCUMENTS_BUCKET = 'candidate-documents';
@@ -1361,5 +1361,66 @@ export async function downloadEditalPdf(storagePath: string): Promise<{ buffer: 
   if (error || !data) throw error ?? new Error('PDF não encontrado');
   const buffer = Buffer.from(await data.arrayBuffer());
   return { buffer, contentType: data.type || 'application/pdf' };
+}
+
+// ---------- Ouvidoria (feedback) ----------
+function toChapterFeedback(row: Record<string, unknown>): ChapterFeedback {
+  const isAnonymous = Boolean(row.is_anonymous);
+  return {
+    id: String(row.id),
+    type: String(row.type) as FeedbackType,
+    message: String(row.message),
+    isAnonymous,
+    authorName: isAnonymous ? undefined : row.author_name ? String(row.author_name) : undefined,
+    createdAt: String(row.created_at),
+  };
+}
+
+export async function getChapterFeedback(): Promise<ChapterFeedback[]> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('chapter_feedback')
+    .select('id, type, message, is_anonymous, author_name, created_at')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map((row) => toChapterFeedback(row as Record<string, unknown>));
+}
+
+export interface InsertChapterFeedbackOptions {
+  type: FeedbackType;
+  message: string;
+  isAnonymous: boolean;
+  authorId: string;
+  authorName?: string;
+}
+
+export async function insertChapterFeedback(opts: InsertChapterFeedbackOptions): Promise<ChapterFeedback> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('chapter_feedback')
+    .insert({
+      type: opts.type,
+      message: opts.message,
+      is_anonymous: opts.isAnonymous,
+      author_id: opts.authorId,
+      author_name: opts.isAnonymous ? null : opts.authorName ?? null,
+    })
+    .select('id, type, message, is_anonymous, author_name, created_at')
+    .single();
+  if (error) throw error;
+  return toChapterFeedback(data as Record<string, unknown>);
+}
+
+export async function deleteChapterFeedback(id: string): Promise<boolean> {
+  const supabase = createAdminClient();
+  const { data: existing } = await supabase
+    .from('chapter_feedback')
+    .select('id')
+    .eq('id', id)
+    .maybeSingle();
+  if (!existing) return false;
+  const { error } = await supabase.from('chapter_feedback').delete().eq('id', id);
+  if (error) throw error;
+  return true;
 }
 

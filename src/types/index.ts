@@ -267,3 +267,15 @@ export interface Edital {
   createdAt: string;
   updatedAt: string;
 }
+
+export type FeedbackType = 'reclamacao' | 'sugestao' | 'elogio';
+
+export interface ChapterFeedback {
+  id: string;
+  type: FeedbackType;
+  message: string;
+  isAnonymous: boolean;
+  /** Presente apenas quando não é anônimo */
+  authorName?: string;
+  createdAt: string;
+}
