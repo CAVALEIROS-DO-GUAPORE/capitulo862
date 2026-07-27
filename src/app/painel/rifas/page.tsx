@@ -780,10 +780,7 @@ export default function PainelRifasPage() {
                   {' '}(máx. {MAX_NUMBERS_PER_SALE} por venda)
                 </p>
                 <div
-                  className="grid gap-1.5 max-h-64 overflow-y-auto p-2 border border-slate-200 rounded-lg"
-                  style={{
-                    gridTemplateColumns: `repeat(${selectedRaffle.totalNumbers <= 50 ? 10 : 15}, minmax(0, 1fr))`,
-                  }}
+                  className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 max-h-[min(24rem,55vh)] overflow-y-auto overscroll-contain touch-pan-y p-2 border border-slate-200 rounded-lg bg-slate-50 [-webkit-overflow-scrolling:touch]"
                 >
                   {Array.from({ length: selectedRaffle.totalNumbers }, (_, i) => i + 1).map((num) => {
                     const sold = soldSet.has(num);
@@ -794,12 +791,12 @@ export default function PainelRifasPage() {
                         type="button"
                         disabled={sold}
                         onClick={() => toggleNumber(num)}
-                        className={`aspect-square rounded text-xs font-medium border transition-colors ${
+                        className={`min-h-10 sm:min-h-9 rounded-md text-sm font-semibold border touch-manipulation select-none ${
                           sold
                             ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
                             : selected
                               ? 'bg-blue-600 border-blue-600 text-white'
-                              : 'bg-white border-slate-300 text-slate-700 hover:border-blue-400'
+                              : 'bg-white border-slate-300 text-slate-700 active:border-blue-400'
                         }`}
                       >
                         {num}
