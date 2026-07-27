@@ -16,45 +16,75 @@ function gridCols(total: number): number {
 }
 
 function NumberGrid({ raffle }: { raffle: PublicRaffle }) {
+  const [selected, setSelected] = useState<{ number: number; buyer: string } | null>(null);
   const soldMap = new Map(raffle.soldNumbers.map((s) => [s.number, s.buyerName]));
   const cols = gridCols(raffle.totalNumbers);
   const gapPx = 4;
   const maxHeight = `calc(${VISIBLE_ROWS} * ${CELL_HEIGHT} + ${VISIBLE_ROWS - 1} * ${gapPx}px)`;
 
   return (
-    <div
-      className="overflow-y-auto rounded-lg border border-slate-100 pr-1"
-      style={{ maxHeight }}
-    >
+    <>
       <div
-        className="grid gap-1"
-        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+        className="overflow-y-auto overscroll-contain touch-pan-y rounded-lg border border-slate-100 pr-1 [-webkit-overflow-scrolling:touch]"
+        style={{ maxHeight }}
       >
-        {Array.from({ length: raffle.totalNumbers }, (_, i) => i + 1).map((num) => {
-          const buyer = soldMap.get(num);
-          const sold = !!buyer;
-          return (
-            <div
-              key={num}
-              title={sold ? `${num} — ${buyer}` : `${num} — disponível`}
-              style={{ height: CELL_HEIGHT }}
-              className={`rounded flex flex-col items-center justify-center text-center px-0.5 border text-[9px] sm:text-[10px] leading-tight ${
-                sold
-                  ? 'bg-blue-100 border-blue-300 text-blue-900'
-                  : 'bg-slate-50 border-slate-200 text-slate-400'
-              }`}
-            >
-              <span className="font-bold leading-none">{num}</span>
-              {sold && (
-                <span className="truncate w-full text-[7px] sm:text-[8px] font-medium leading-none mt-0.5">
-                  {buyer}
-                </span>
-              )}
-            </div>
-          );
-        })}
+        <div
+          className="grid gap-1"
+          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+        >
+          {Array.from({ length: raffle.totalNumbers }, (_, i) => i + 1).map((num) => {
+            const buyer = soldMap.get(num);
+            const sold = !!buyer;
+            return (
+              <button
+                key={num}
+                type="button"
+                disabled={!sold}
+                onClick={() => {
+                  if (buyer) setSelected({ number: num, buyer });
+                }}
+                title={sold ? `${num} — ${buyer}` : `${num} — disponível`}
+                style={{ height: CELL_HEIGHT }}
+                className={`rounded flex flex-col items-center justify-center text-center px-0.5 border text-[9px] sm:text-[10px] leading-tight touch-manipulation ${
+                  sold
+                    ? 'bg-blue-100 border-blue-300 text-blue-900 active:bg-blue-200'
+                    : 'bg-slate-50 border-slate-200 text-slate-400 cursor-default'
+                }`}
+              >
+                <span className="font-bold leading-none">{num}</span>
+                {sold && (
+                  <span className="truncate w-full text-[7px] sm:text-[8px] font-medium leading-none mt-0.5">
+                    {buyer}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
-    </div>
+
+      {selected && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4"
+          onClick={() => setSelected(null)}
+        >
+          <div
+            className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-xl shadow-xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm text-slate-500 mb-1">Número {selected.number}</p>
+            <p className="text-lg font-bold text-blue-800 break-words">{selected.buyer}</p>
+            <button
+              type="button"
+              onClick={() => setSelected(null)}
+              className="mt-4 w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -187,7 +217,7 @@ export default function SorteiosPublicPage() {
                   <h3 className="text-xs font-semibold text-slate-700 mb-2">
                     Mapa de números
                     <span className="font-normal text-slate-500 ml-1">
-                      (role para ver todos · azul = vendido)
+                      (role para ver todos · toque no azul para ver o nome)
                     </span>
                   </h3>
                   <NumberGrid raffle={raffle} />

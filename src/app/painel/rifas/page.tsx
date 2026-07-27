@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useDialogs } from '@/components/DialogsProvider';
 import { PanelAccessGate } from '@/components/PanelAccessGate';
 import { canViewRaffles } from '@/lib/panel-permissions';
-import type { Raffle, RaffleSoldNumber } from '@/types';
+import type { Raffle, RaffleSale, RaffleSoldNumber } from '@/types';
 import {
   formatBuyerName,
   formatBuyerNameInput,
@@ -48,6 +48,7 @@ export default function PainelRifasPage() {
   const { confirm, toast } = useDialogs();
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [canManage, setCanManage] = useState(false);
+  const [canAudit, setCanAudit] = useState(false);
   const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<PanelView>('list');
@@ -66,6 +67,14 @@ export default function PainelRifasPage() {
   });
   const [selling, setSelling] = useState(false);
   const [showPix, setShowPix] = useState(false);
+  const [sales, setSales] = useState<(RaffleSale & { hasReceipt?: boolean })[]>([]);
+  const [inspecting, setInspecting] = useState<{
+    number: number;
+    sale: RaffleSale & { hasReceipt?: boolean };
+  } | null>(null);
+  const [inspectLoading, setInspectLoading] = useState(false);
+  const [deletingNumber, setDeletingNumber] = useState(false);
+  const [downloadingReceipt, setDownloadingReceipt] = useState(false);
 
   useEffect(() => {
     const stored = sessionStorage.getItem('dm_user');
@@ -82,7 +91,18 @@ export default function PainelRifasPage() {
     if (res.ok) {
       const data = await res.json();
       setCanManage(!!data.canManage);
+      setCanAudit(!!data.canAudit);
     }
+  }, []);
+
+  const loadSales = useCallback(async (raffleId: string) => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`/api/raffles/${raffleId}/sales`, { headers, credentials: 'include' });
+    if (!res.ok) return [] as (RaffleSale & { hasReceipt?: boolean })[];
+    const data = await res.json();
+    const list = Array.isArray(data) ? data : [];
+    setSales(list);
+    return list as (RaffleSale & { hasReceipt?: boolean })[];
   }, []);
 
   const loadRaffles = useCallback(async () => {
@@ -204,10 +224,93 @@ export default function PainelRifasPage() {
     try {
       const detail = await loadRaffleDetail(raffle.id);
       setSelectedRaffle(detail);
+      setSales([]);
+      setInspecting(null);
       resetSaleForm();
       setView('sell');
+      loadSales(raffle.id).catch(() => {});
     } catch {
       toast('Erro ao abrir venda', 'error');
+    }
+  }
+
+  async function openSoldNumber(num: number) {
+    if (!canAudit || !selectedRaffle) return;
+    setInspectLoading(true);
+    try {
+      let list = sales;
+      if (list.length === 0) {
+        list = await loadSales(selectedRaffle.id);
+      }
+      const sale = list.find((s) => s.numbers.includes(num));
+      if (!sale) {
+        toast('Venda deste número não encontrada', 'error');
+        return;
+      }
+      setInspecting({ number: num, sale });
+    } catch {
+      toast('Erro ao carregar dados da venda', 'error');
+    } finally {
+      setInspectLoading(false);
+    }
+  }
+
+  async function handleDownloadReceipt() {
+    if (!selectedRaffle || !inspecting) return;
+    setDownloadingReceipt(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(
+        `/api/raffles/${selectedRaffle.id}/sales/${inspecting.sale.id}/receipt`,
+        { headers, credentials: 'include' }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Erro ao baixar comprovante');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = inspecting.sale.receiptFileName || `comprovante-${inspecting.number}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Erro ao baixar comprovante', 'error');
+    } finally {
+      setDownloadingReceipt(false);
+    }
+  }
+
+  async function handleDeleteSoldNumber() {
+    if (!selectedRaffle || !inspecting) return;
+    const ok = await confirm({
+      message: `Excluir a venda do número ${inspecting.number}? Ele voltará a ficar disponível.`,
+      danger: true,
+      confirmLabel: 'Excluir venda',
+    });
+    if (!ok) return;
+
+    setDeletingNumber(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(
+        `/api/raffles/${selectedRaffle.id}/numbers/${inspecting.number}`,
+        { method: 'DELETE', headers, credentials: 'include' }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Erro ao excluir venda');
+
+      toast(`Número ${inspecting.number} liberado novamente`);
+      setInspecting(null);
+      const detail = await loadRaffleDetail(selectedRaffle.id);
+      setSelectedRaffle(detail);
+      await loadSales(selectedRaffle.id);
+      loadRaffles();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Erro ao excluir venda', 'error');
+    } finally {
+      setDeletingNumber(false);
     }
   }
 
@@ -289,7 +392,10 @@ export default function PainelRifasPage() {
   }
 
   function toggleNumber(num: number) {
-    if (soldSet.has(num)) return;
+    if (soldSet.has(num)) {
+      if (canAudit) openSoldNumber(num);
+      return;
+    }
     setSaleForm((prev) => {
       const has = prev.selectedNumbers.includes(num);
       if (!has && prev.selectedNumbers.length >= MAX_NUMBERS_PER_SALE) {
@@ -778,6 +884,11 @@ export default function PainelRifasPage() {
                     ? saleForm.selectedNumbers.join(', ')
                     : 'nenhum'}
                   {' '}(máx. {MAX_NUMBERS_PER_SALE} por venda)
+                  {canAudit && (
+                    <span className="block mt-1 text-blue-700">
+                      Clique em um número vendido (cinza) para ver os dados e o comprovante ou excluir a venda.
+                    </span>
+                  )}
                 </p>
                 <div
                   className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 max-h-[min(24rem,55vh)] overflow-y-auto overscroll-contain touch-pan-y p-2 border border-slate-200 rounded-lg bg-slate-50 [-webkit-overflow-scrolling:touch]"
@@ -785,15 +896,19 @@ export default function PainelRifasPage() {
                   {Array.from({ length: selectedRaffle.totalNumbers }, (_, i) => i + 1).map((num) => {
                     const sold = soldSet.has(num);
                     const selected = saleForm.selectedNumbers.includes(num);
+                    const buyer = selectedRaffle.soldNumbers.find((s) => s.number === num)?.buyerName;
                     return (
                       <button
                         key={num}
                         type="button"
-                        disabled={sold}
+                        disabled={sold && !canAudit}
+                        title={sold ? (buyer ? `${num} — ${buyer}` : `${num} — vendido`) : undefined}
                         onClick={() => toggleNumber(num)}
                         className={`min-h-10 sm:min-h-9 rounded-md text-sm font-semibold border touch-manipulation select-none ${
                           sold
-                            ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                            ? canAudit
+                              ? 'bg-slate-200 border-slate-300 text-slate-600 active:bg-slate-300'
+                              : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
                             : selected
                               ? 'bg-blue-600 border-blue-600 text-white'
                               : 'bg-white border-slate-300 text-slate-700 active:border-blue-400'
@@ -804,6 +919,9 @@ export default function PainelRifasPage() {
                     );
                   })}
                 </div>
+                {inspectLoading && (
+                  <p className="text-xs text-slate-500 mt-2">Carregando dados da venda...</p>
+                )}
               </div>
 
               <button
@@ -817,6 +935,80 @@ export default function PainelRifasPage() {
           </div>
         )}
       </div>
+
+      {inspecting && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4"
+          onClick={() => setInspecting(null)}
+        >
+          <div
+            className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-xl shadow-xl p-5 space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-bold text-blue-800">Número {inspecting.number}</h3>
+                <p className="text-sm text-slate-500">Dados da venda</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspecting(null)}
+                className="text-slate-500 hover:text-slate-800 text-sm px-2 py-1"
+              >
+                Fechar
+              </button>
+            </div>
+
+            <dl className="space-y-2 text-sm">
+              <div>
+                <dt className="text-slate-500">Comprador</dt>
+                <dd className="font-semibold text-slate-800">{inspecting.sale.buyerName}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Telefone</dt>
+                <dd className="font-medium text-slate-800">{inspecting.sale.buyerPhone}</dd>
+              </div>
+              {inspecting.sale.buyerPhoneExtra && (
+                <div>
+                  <dt className="text-slate-500">Telefone extra</dt>
+                  <dd className="font-medium text-slate-800">{inspecting.sale.buyerPhoneExtra}</dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-slate-500">Números desta venda</dt>
+                <dd className="font-medium text-slate-800">{inspecting.sale.numbers.join(', ')}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Data da venda</dt>
+                <dd className="font-medium text-slate-800">
+                  {new Date(inspecting.sale.createdAt).toLocaleString('pt-BR')}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="flex flex-col gap-2 pt-2">
+              {inspecting.sale.hasReceipt && (
+                <button
+                  type="button"
+                  onClick={handleDownloadReceipt}
+                  disabled={downloadingReceipt}
+                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium"
+                >
+                  {downloadingReceipt ? 'Baixando...' : 'Ver comprovante PIX'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleDeleteSoldNumber}
+                disabled={deletingNumber}
+                className="w-full py-2.5 border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg text-sm font-medium"
+              >
+                {deletingNumber ? 'Excluindo...' : 'Excluir venda deste número'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </PanelAccessGate>
   );
 }
