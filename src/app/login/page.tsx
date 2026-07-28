@@ -158,9 +158,6 @@ export default function LoginPage() {
                 placeholder="seu@email.com ou ID"
                 required
               />
-              <p className="text-xs text-slate-500 mt-1">
-                ID 0 não permite login — use o e-mail nestes casos.
-              </p>
             </div>
             <div>
               <label htmlFor="password" className="block text-slate-700 text-sm mb-1">
