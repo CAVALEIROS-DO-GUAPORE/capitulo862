@@ -181,8 +181,35 @@ export async function getMembers(): Promise<Member[]> {
   return (data || []).map(toMember);
 }
 
+/** IDs > 0 devem ser únicos. ID 0 = sem identificador (pode repetir). */
+export async function assertUniqueMemberIdentifier(
+  identifier: number,
+  excludeMemberId?: string
+): Promise<void> {
+  if (!Number.isInteger(identifier) || identifier <= 0) return;
+
+  const supabase = createAdminClient();
+  let query = supabase
+    .from('members')
+    .select('id, name')
+    .eq('identifier', identifier)
+    .limit(1);
+
+  if (excludeMemberId) {
+    query = query.neq('id', excludeMemberId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  if (data) {
+    throw new Error(`O ID ${identifier} já está em uso por outro membro${data.name ? ` (${data.name})` : ''}.`);
+  }
+}
+
 export async function insertMember(m: Omit<Member, 'id'>): Promise<Member> {
   const supabase = createAdminClient();
+  const identifier = m.identifier != null ? m.identifier : 0;
+  await assertUniqueMemberIdentifier(identifier);
   const row = {
     name: m.name,
     photo: m.photo ?? null,
@@ -191,17 +218,25 @@ export async function insertMember(m: Omit<Member, 'id'>): Promise<Member> {
     order: m.order,
     user_id: m.userId ?? null,
     phone: m.phone ?? null,
-    identifier: m.identifier != null ? m.identifier : 0,
+    identifier,
     additional_roles: Array.isArray(m.additionalRoles) ? m.additionalRoles : [],
     badges: Array.isArray(m.badges) ? m.badges : [],
   };
   const { data, error } = await supabase.from('members').insert(row).select('*').single();
-  if (error) throw error;
+  if (error) {
+    if (error.code === '23505' || error.message.toLowerCase().includes('unique')) {
+      throw new Error(`O ID ${identifier} já está em uso por outro membro.`);
+    }
+    throw error;
+  }
   return toMember(data);
 }
 
 export async function updateMember(id: string, partial: Partial<Member>): Promise<Member> {
   const supabase = createAdminClient();
+  if (partial.identifier !== undefined) {
+    await assertUniqueMemberIdentifier(partial.identifier, id);
+  }
   const row: Record<string, unknown> = {};
   if (partial.name !== undefined) row.name = partial.name;
   if (partial.photo !== undefined) row.photo = partial.photo;
@@ -214,7 +249,12 @@ export async function updateMember(id: string, partial: Partial<Member>): Promis
   if (partial.additionalRoles !== undefined) row.additional_roles = partial.additionalRoles;
   if (partial.badges !== undefined) row.badges = partial.badges;
   const { data, error } = await supabase.from('members').update(row).eq('id', id).select('*').single();
-  if (error) throw error;
+  if (error) {
+    if (error.code === '23505' || error.message.toLowerCase().includes('unique')) {
+      throw new Error(`O ID ${partial.identifier} já está em uso por outro membro.`);
+    }
+    throw error;
+  }
   return toMember(data);
 }
 

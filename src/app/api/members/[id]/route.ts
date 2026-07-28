@@ -60,7 +60,10 @@ export async function PATCH(
     const updated = await updateMember(id, partial);
     return NextResponse.json(updated);
   } catch (err) {
-    return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Erro ao atualizar';
+    console.error('[members PATCH]', err);
+    const status = message.includes('já está em uso') ? 409 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }
 

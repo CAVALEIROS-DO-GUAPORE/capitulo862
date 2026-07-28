@@ -632,6 +632,9 @@ export default function PainelMembrosPage() {
                       className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg"
                       placeholder="0"
                     />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Único por membro. Use 0 se ainda não tiver ID.
+                    </p>
                   </div>
                   <div>
                     <label className="block text-slate-700 text-xs font-medium mb-1">Ordem</label>
