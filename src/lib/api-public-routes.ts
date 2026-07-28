@@ -11,6 +11,7 @@ export function isPublicApiRoute(method: string, pathname: string): boolean {
   }
 
   if (m === 'POST' && pathname === '/api/candidatos') return true;
+  if (m === 'POST' && pathname === '/api/auth/resolve-login') return true;
 
   return false;
 }

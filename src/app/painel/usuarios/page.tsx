@@ -17,7 +17,7 @@ const PANEL_ROLES = [
 ];
 
 const INVITE_PASSWORD_NOTE =
-  'Informe a senha inicial ao membro por um canal seguro (pessoalmente ou WhatsApp). Ele deve alterá-la em Perfil após o primeiro acesso.';
+  'Senha inicial padrão: demolay. Informe ao membro por um canal seguro; ele deve alterá-la em Perfil após o primeiro acesso.';
 
 type UsuariosTab = 'lista' | 'senha' | 'criar';
 
@@ -373,7 +373,7 @@ export default function PainelUsuariosPage() {
       {tab === 'criar' && (
         <div role="tabpanel" className="max-w-md">
           <p className="text-slate-600 mb-4 text-sm">
-            Após criar a conta, informe a senha inicial ao membro por um canal seguro (pessoalmente ou WhatsApp). Ele deve alterá-la em Perfil após o primeiro acesso.
+            Após criar a conta, a senha inicial é <strong>demolay</strong>. Informe ao membro por um canal seguro (pessoalmente ou WhatsApp). Ele deve alterá-la em Perfil após o primeiro acesso.
           </p>
           <form onSubmit={handleSubmit} className="space-y-4 bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
             <div>

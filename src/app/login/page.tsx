@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -13,10 +13,29 @@ export default function LoginPage() {
 
   useEffect(() => {
     fetch('/api/settings/maintenance')
-      .then((r) => r.ok ? r.json() : null)
+      .then((r) => (r.ok ? r.json() : null))
       .then((data) => setMaintenanceActive(data?.maintenanceEnabled === true))
       .catch(() => {});
   }, []);
+
+  async function resolveEmail(loginValue: string): Promise<string> {
+    const trimmed = loginValue.trim();
+    if (trimmed.includes('@')) return trimmed.toLowerCase();
+
+    const res = await fetch('/api/auth/resolve-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login: trimmed }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || 'Não foi possível identificar a conta.');
+    }
+    if (!data.email) {
+      throw new Error('Conta não encontrada.');
+    }
+    return String(data.email);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,17 +43,18 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      const email = await resolveEmail(login);
       const supabase = createClient();
 
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email,
         password,
       });
 
       if (authError) {
         const msg = authError.message;
         if (msg === 'Invalid login credentials') {
-          setError('Email ou senha incorretos.');
+          setError('E-mail/ID ou senha incorretos.');
         } else if (msg === 'Failed to fetch' || msg.includes('fetch') || msg.includes('network')) {
           setError('Não foi possível conectar ao servidor. Verifique sua internet e se o painel está configurado (Supabase).');
         } else {
@@ -84,22 +104,26 @@ export default function LoginPage() {
         .single();
       if (!flagError && flagRow?.must_change_password === true) mustChangePassword = true;
 
-      sessionStorage.setItem('dm_user', JSON.stringify({
-        id: authData.user.id,
-        email: profile.email || authData.user.email,
-        role: profile.role || 'membro',
-        name: profile.name || 'Membro',
-        avatarUrl: profile.avatar_url || null,
-        mustChangePassword: mustChangePassword,
-      }));
+      sessionStorage.setItem(
+        'dm_user',
+        JSON.stringify({
+          id: authData.user.id,
+          email: profile.email || authData.user.email,
+          role: profile.role || 'membro',
+          name: profile.name || 'Membro',
+          avatarUrl: profile.avatar_url || null,
+          mustChangePassword: mustChangePassword,
+        })
+      );
 
       const target = mustChangePassword ? '/painel/perfil?trocar=1' : '/painel';
-      // Navegação completa garante que os cookies de sessão cheguem ao middleware
       window.location.href = target;
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       if (msg === 'Failed to fetch' || msg.includes('fetch') || msg.includes('network')) {
         setError('Não foi possível conectar ao servidor. Verifique sua internet e se o painel está configurado (Supabase).');
+      } else if (msg) {
+        setError(msg);
       } else {
         setError('Erro ao fazer login. Tente novamente.');
       }
@@ -112,29 +136,31 @@ export default function LoginPage() {
     <div className="min-h-[60vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-8">
-          <h1 className="text-2xl font-bold text-blue-800 mb-2 text-center">
-            Área do Membro
-          </h1>
+          <h1 className="text-2xl font-bold text-blue-800 mb-2 text-center">Área do Membro</h1>
           <p className="text-slate-600 text-center mb-8 text-sm">
             {maintenanceActive
               ? 'Site em manutenção. Apenas o administrador pode entrar para testes.'
-              : 'Entre com seu email e senha para acessar o painel interno.'}
+              : 'Entre com seu e-mail ou ID de membro e a senha para acessar o painel.'}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-slate-700 text-sm mb-1">
-                Email
+              <label htmlFor="login" className="block text-slate-700 text-sm mb-1">
+                E-mail ou ID
               </label>
               <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="login"
+                type="text"
+                autoComplete="username"
+                value={login}
+                onChange={(e) => setLogin(e.target.value)}
                 className="w-full px-4 py-2 rounded-lg bg-white border border-slate-300 text-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                placeholder="seu@email.com"
+                placeholder="seu@email.com ou ID"
                 required
               />
+              <p className="text-xs text-slate-500 mt-1">
+                ID 0 não permite login — use o e-mail nestes casos.
+              </p>
             </div>
             <div>
               <label htmlFor="password" className="block text-slate-700 text-sm mb-1">
@@ -143,6 +169,7 @@ export default function LoginPage() {
               <input
                 id="password"
                 type="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-2 rounded-lg bg-white border border-slate-300 text-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
@@ -150,9 +177,7 @@ export default function LoginPage() {
                 required
               />
             </div>
-            {error && (
-              <p className="text-red-400 text-sm">{error}</p>
-            )}
+            {error && <p className="text-red-400 text-sm">{error}</p>}
             <button
               type="submit"
               disabled={loading}
