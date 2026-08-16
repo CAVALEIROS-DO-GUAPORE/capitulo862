@@ -12,9 +12,11 @@ import {
   formatBuyerNameInput,
   formatCurrency,
   formatDrawDate,
-  qrCodeUrl,
+  buildPixBrCode,
 } from '@/lib/raffles-utils';
+import { PixQrCode } from '@/components/PixQrCode';
 import { MAX_NUMBERS_PER_SALE } from '@/lib/raffles-security';
+import { CHAPTER_NAME, CHAPTER_NUMBER } from '@/data/mock';
 
 async function getAuthHeaders(json = false): Promise<HeadersInit> {
   const supabase = createClient();
@@ -787,34 +789,74 @@ export default function PainelRifasPage() {
               </div>
               {showPix && (
                 <div className="flex flex-col sm:flex-row items-center gap-4">
-                  <img
-                    src={qrCodeUrl(selectedRaffle.pixKey, 180)}
-                    alt="QR Code PIX"
-                    width={180}
-                    height={180}
-                    className="rounded-lg border border-slate-200"
+                  <PixQrCode
+                    pixKey={selectedRaffle.pixKey}
+                    amount={saleForm.selectedNumbers.length > 0 ? totalSale : undefined}
+                    description={`Sorteio ${selectedRaffle.title}`.slice(0, 72)}
+                    size={180}
                   />
-                  <div className="flex-1 w-full">
-                    <p className="text-sm text-slate-600 mb-2">Chave PIX:</p>
-                    <div className="flex gap-2">
-                      <input
-                        readOnly
-                        value={selectedRaffle.pixKey}
-                        className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-50"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(selectedRaffle.pixKey);
-                          toast('Chave PIX copiada!');
-                        }}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm"
-                      >
-                        Copiar
-                      </button>
+                  <div className="flex-1 w-full space-y-3">
+                    <div>
+                      <p className="text-sm text-slate-600 mb-2">Chave PIX:</p>
+                      <div className="flex gap-2">
+                        <input
+                          readOnly
+                          value={selectedRaffle.pixKey}
+                          className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-50"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(selectedRaffle.pixKey);
+                            toast('Chave PIX copiada!');
+                          }}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm"
+                        >
+                          Copiar
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-600 mb-2">PIX Copia e Cola:</p>
+                      <div className="flex gap-2">
+                        <input
+                          readOnly
+                          value={buildPixBrCode({
+                            pixKey: selectedRaffle.pixKey,
+                            amount: saleForm.selectedNumbers.length > 0 ? totalSale : undefined,
+                            description: `Sorteio ${selectedRaffle.title}`.slice(0, 72),
+                            merchantName: `${CHAPTER_NAME} ${CHAPTER_NUMBER}`,
+                            merchantCity: 'PONTES E LACERDA',
+                          })}
+                          className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-xs bg-slate-50 truncate"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const payload = buildPixBrCode({
+                              pixKey: selectedRaffle.pixKey,
+                              amount: saleForm.selectedNumbers.length > 0 ? totalSale : undefined,
+                              description: `Sorteio ${selectedRaffle.title}`.slice(0, 72),
+                              merchantName: `${CHAPTER_NAME} ${CHAPTER_NUMBER}`,
+                              merchantCity: 'PONTES E LACERDA',
+                            });
+                            navigator.clipboard.writeText(payload);
+                            toast('PIX Copia e Cola copiado!');
+                          }}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm whitespace-nowrap"
+                        >
+                          Copiar código
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Escaneie o QR no app do banco ou use o Copia e Cola.
+                        {saleForm.selectedNumbers.length > 0
+                          ? ' O valor já vai preenchido com o total selecionado.'
+                          : ' Selecione os números para incluir o valor no QR.'}
+                      </p>
                     </div>
                     {saleForm.selectedNumbers.length > 0 && (
-                      <p className="mt-3 text-sm font-semibold text-green-700">
+                      <p className="text-sm font-semibold text-green-700">
                         Total: {formatCurrency(totalSale)} ({saleForm.selectedNumbers.length}{' '}
                         número{saleForm.selectedNumbers.length > 1 ? 's' : ''})
                       </p>
