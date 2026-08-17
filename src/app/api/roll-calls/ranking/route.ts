@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         type,
         {
           label: MEETING_TYPE_LABELS[type],
-          items: computeAttendanceRanking(meetings, members, type, selectedGestao, 5, memberCategory),
+          items: computeAttendanceRanking(meetings, members, type, selectedGestao, 0, memberCategory),
           totalMeetings: meetings.filter((meeting) => {
             const meetingType = meeting.meetingType || 'ritualistica';
             return meetingType === type && normalizeGestaoKey(meeting.date, meeting.gestao) === selectedGestao;

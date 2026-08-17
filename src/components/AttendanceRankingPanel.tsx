@@ -21,7 +21,7 @@ interface RankingResponse {
 }
 
 const TYPE_ORDER: MeetingType[] = ['ritualistica', 'administrativa', 'controle'];
-
+const PREVIEW_LIMIT = 5;
 const MEDALS = ['🥇', '🥈', '🥉'] as const;
 
 function MemberAvatar({ name, photo, position }: { name: string; photo?: string; position: number }) {
@@ -61,12 +61,48 @@ function MemberAvatar({ name, photo, position }: { name: string; photo?: string;
   );
 }
 
+function RankingList({
+  items,
+  photoFor,
+}: {
+  items: AttendanceRankingEntry[];
+  photoFor: (item: AttendanceRankingEntry) => string | undefined;
+}) {
+  return (
+    <ol className="space-y-3">
+      {items.map((item, index) => (
+        <li
+          key={item.memberId}
+          className={`flex items-center gap-3 rounded-xl px-2 py-2.5 -mx-2 ${
+            index === 0
+              ? 'bg-amber-50/80'
+              : index === 1
+                ? 'bg-slate-50/90'
+                : index === 2
+                  ? 'bg-orange-50/60'
+                  : ''
+          }`}
+        >
+          <MemberAvatar name={item.name} photo={photoFor(item)} position={index} />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-slate-800 truncate">{item.name}</p>
+            <p className="text-sm text-slate-600">
+              {item.count} presença{item.count === 1 ? '' : 's'} · {item.percentage}% de frequência
+            </p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export default function AttendanceRankingPanel() {
   const [data, setData] = useState<RankingResponse | null>(null);
   const [photoByMemberId, setPhotoByMemberId] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [gestao, setGestao] = useState('');
   const [memberCategory, setMemberCategory] = useState<RankingMemberCategory>('todos');
+  const [viewAllType, setViewAllType] = useState<MeetingType | null>(null);
 
   async function loadRanking(
     selectedGestao?: string,
@@ -139,6 +175,7 @@ export default function AttendanceRankingPanel() {
   }
 
   const categoryLabel = data.memberCategoryOptions.find((o) => o.value === memberCategory)?.label;
+  const viewAllSection = viewAllType ? data.rankings[viewAllType] : null;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -146,7 +183,7 @@ export default function AttendanceRankingPanel() {
         <div>
           <h2 className="text-lg font-bold text-blue-800">Ranking de presenças</h2>
           <p className="text-slate-500 text-sm mt-0.5">
-            Top 5 por tipo de reunião
+            Top {PREVIEW_LIMIT} por tipo de reunião
             {memberCategory !== 'todos' && categoryLabel ? ` · ${categoryLabel}` : ''}
             {' '}na gestão {gestao}.
           </p>
@@ -188,8 +225,9 @@ export default function AttendanceRankingPanel() {
       <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
         {TYPE_ORDER.map((type) => {
           const section = data.rankings[type];
+          const preview = section.items.slice(0, PREVIEW_LIMIT);
           return (
-            <div key={type} className="p-5">
+            <div key={type} className="p-5 flex flex-col">
               <div className="mb-4">
                 <h3 className="font-semibold text-slate-800">{section.label}</h3>
                 <p className="text-xs text-slate-500 mt-1">
@@ -201,39 +239,54 @@ export default function AttendanceRankingPanel() {
               {section.items.length === 0 ? (
                 <p className="text-sm text-slate-400">Sem presenças registradas.</p>
               ) : (
-                <ol className="space-y-3">
-                  {section.items.map((item, index) => (
-                    <li
-                      key={item.memberId}
-                      className={`flex items-center gap-3 rounded-xl px-2 py-2.5 -mx-2 ${
-                        index === 0
-                          ? 'bg-amber-50/80'
-                          : index === 1
-                            ? 'bg-slate-50/90'
-                            : index === 2
-                              ? 'bg-orange-50/60'
-                              : ''
-                      }`}
-                    >
-                      <MemberAvatar
-                        name={item.name}
-                        photo={photoFor(item)}
-                        position={index}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-slate-800 truncate">{item.name}</p>
-                        <p className="text-sm text-slate-600">
-                          {item.count} presença{item.count === 1 ? '' : 's'} · {item.percentage}% de frequência
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
+                <>
+                  <RankingList items={preview} photoFor={photoFor} />
+                  <button
+                    type="button"
+                    onClick={() => setViewAllType(type)}
+                    className="mt-4 w-full py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                  >
+                    Ver todos ({section.items.length})
+                  </button>
+                </>
               )}
             </div>
           );
         })}
       </div>
+
+      {viewAllType && viewAllSection && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4"
+          onClick={() => setViewAllType(null)}
+        >
+          <div
+            className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-xl shadow-xl max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-slate-100 flex items-start justify-between gap-3 shrink-0">
+              <div>
+                <h3 className="text-lg font-bold text-blue-800">{viewAllSection.label}</h3>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  {viewAllSection.items.length} membro{viewAllSection.items.length === 1 ? '' : 's'} com frequência
+                  {memberCategory !== 'todos' && categoryLabel ? ` · ${categoryLabel}` : ''}
+                  {' '}· gestão {gestao}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewAllType(null)}
+                className="text-slate-500 hover:text-slate-800 text-sm px-2 py-1"
+              >
+                Fechar
+              </button>
+            </div>
+            <div className="px-5 py-4 overflow-y-auto">
+              <RankingList items={viewAllSection.items} photoFor={photoFor} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

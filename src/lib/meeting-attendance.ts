@@ -140,5 +140,5 @@ export function computeAttendanceRanking(
       totalMeetings,
     }))
     .sort((a, b) => b.count - a.count || b.percentage - a.percentage || a.name.localeCompare(b.name, 'pt-BR'))
-    .slice(0, limit);
+    .slice(0, limit != null && limit > 0 ? limit : undefined);
 }
